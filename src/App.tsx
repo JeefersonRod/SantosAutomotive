@@ -156,17 +156,6 @@ function AppContent() {
               />
             </div>
             <div className="flex flex-col">
-              <div className="flex items-center gap-2 text-[10px] font-bold text-surface-400 uppercase tracking-widest mb-0.5">
-                <Link to="/" className="hover:text-brand-primary transition-colors notranslate" translate="no">Santos Automotive</Link>
-                {location.pathname !== '/' && (
-                  <>
-                    <ChevronRight className="w-3 h-3" />
-                    <span className="text-surface-600">
-                      {NAV_ITEMS.find(i => i.id === activeTab)?.label}
-                    </span>
-                  </>
-                )}
-              </div>
               <h2 className="text-xl font-display font-bold text-surface-900 capitalize leading-none">
                 {NAV_ITEMS.find(i => i.id === activeTab)?.label}
               </h2>
@@ -205,21 +194,6 @@ function AppContent() {
           </div>
         </header>
         
-        {/* Breadcrumb */}
-        <div className="px-6 pt-4 print:hidden">
-          <nav className="flex items-center gap-2 text-xs font-medium text-surface-400">
-            <Link to="/" className="hover:text-brand-primary transition-colors">Home</Link>
-            {location.pathname !== '/' && (
-              <>
-                <ChevronRight className="w-3 h-3" />
-                <span className="text-surface-900 capitalize">
-                  {NAV_ITEMS.find(i => i.path === location.pathname)?.label || location.pathname.split('/').filter(Boolean).pop()}
-                </span>
-              </>
-            )}
-          </nav>
-        </div>
-
         <div className="max-w-7xl mx-auto px-6 py-8 pb-24 md:pb-8">
           <AnimatePresence mode="wait">
             <motion.div

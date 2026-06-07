@@ -55,6 +55,7 @@ app.use(express.urlencoded({ extended: true }));
 app.get("/api/health", async (req, res) => {
   let dbStatus = "not_checked";
   let dbError = null;
+  let dbErrorDetails: any = null;
 
   if (supabase) {
     try {
@@ -63,6 +64,11 @@ app.get("/api/health", async (req, res) => {
       if (error) {
         dbStatus = "error";
         dbError = error.message;
+        dbErrorDetails = {
+          code: error.code,
+          details: error.details,
+          hint: error.hint
+        };
       } else {
         dbStatus = "connected";
         
@@ -74,7 +80,29 @@ app.get("/api/health", async (req, res) => {
     } catch (err: any) {
       dbStatus = "exception";
       dbError = err.message;
+      dbErrorDetails = {
+        name: err.name,
+        cause: err.cause ? {
+          code: err.cause.code,
+          errno: err.cause.errno,
+          syscall: err.cause.syscall,
+          hostname: err.cause.hostname,
+          message: err.cause.message
+        } : null
+      };
     }
+  }
+
+  let supabaseHost = null;
+  let supabaseUrlValid = false;
+  try {
+    if (supabaseUrl) {
+      const parsedUrl = new URL(supabaseUrl);
+      supabaseHost = parsedUrl.hostname;
+      supabaseUrlValid = parsedUrl.protocol === "https:";
+    }
+  } catch (err) {
+    supabaseUrlValid = false;
   }
 
   res.json({ 
@@ -83,8 +111,11 @@ app.get("/api/health", async (req, res) => {
     supabase: !!supabase,
     database: dbStatus,
     database_error: dbError,
+    database_error_details: dbErrorDetails,
     env: {
       url: !!(process.env.SUPABASE_URL || process.env.URL_SUPABASE),
+      url_valid: supabaseUrlValid,
+      url_host: supabaseHost,
       key: !!(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY),
       secret: !!(process.env.SESSION_SECRET || process.env.SESSÃO_SECRETO)
     }
