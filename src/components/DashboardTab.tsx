@@ -27,8 +27,8 @@ import { Vehicle, OrderItem, StaffMember, ServiceOrder } from '../types';
 import MultiImageUpload from './MultiImageUpload';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
-
-const API_URL = '/api';
+import { ApiError } from '../services/api';
+import { orderService, reportService, staffService, vehicleService } from '../services';
 
 interface Stats {
   clients: number;
@@ -89,11 +89,8 @@ export default function DashboardTab({ onNavigate }: { onNavigate: (tab: any) =>
 
   const fetchStaff = async () => {
     try {
-      const res = await fetch(`${API_URL}/staff`, { credentials: 'include' });
-      const data = await res.json();
-      if (Array.isArray(data)) {
-        setStaff(data.filter((m: StaffMember) => m.active));
-      }
+      const data = await staffService.listActive();
+      setStaff(data);
     } catch (err) {
       console.error('Failed to fetch staff:', err);
     }
@@ -101,23 +98,18 @@ export default function DashboardTab({ onNavigate }: { onNavigate: (tab: any) =>
 
   const fetchStats = async () => {
     try {
-      let url = `${API_URL}/stats`;
+      let query = '';
       const now = new Date();
       if (dateFilter !== 'all') {
         const start = new Date();
         if (dateFilter === 'today') start.setHours(0,0,0,0);
         if (dateFilter === '7days') start.setDate(now.getDate() - 7);
         if (dateFilter === '30days') start.setDate(now.getDate() - 30);
-        url += `?start_date=${start.toISOString()}`;
+        query = `?start_date=${start.toISOString()}`;
       }
 
-      const res = await fetch(url, { credentials: 'include' });
-      const data = await res.json();
-      if (data && typeof data === 'object' && !data.error) {
-        setStats(data);
-      } else {
-        console.error('Stats data is invalid:', data);
-      }
+      const data = await reportService.stats<Stats>(query);
+      setStats(data);
     } catch (err) { 
       console.error('Failed to fetch stats:', err);
     }
@@ -125,8 +117,7 @@ export default function DashboardTab({ onNavigate }: { onNavigate: (tab: any) =>
 
   const fetchRecentOrders = async () => {
     try {
-      const res = await fetch(`${API_URL}/orders`, { credentials: 'include' });
-      const data = await res.json();
+      const data = await orderService.list();
       if (Array.isArray(data)) {
         setRecentOrders(data.slice(0, 5));
       }
@@ -137,8 +128,7 @@ export default function DashboardTab({ onNavigate }: { onNavigate: (tab: any) =>
 
   const fetchVehicles = async () => {
     try {
-      const res = await fetch(`${API_URL}/vehicles`, { credentials: 'include' });
-      const data = await res.json();
+      const data = await vehicleService.list();
       if (Array.isArray(data)) {
         setVehicles(data);
       } else {
@@ -173,53 +163,43 @@ export default function DashboardTab({ onNavigate }: { onNavigate: (tab: any) =>
 
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/orders`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          vehicle_id: parseInt(osForm.vehicle_id),
-          description: osForm.description,
-          technician_ids: osForm.technician_ids,
-          items: osForm.items,
-          notes: osForm.notes,
-          checklist: osForm.checklist,
-          checkin_images: osForm.checkin_images,
-          entry_date: osForm.entry_date,
-          exit_date: osForm.exit_date,
-          is_priority: osForm.is_priority
-        }),
-        credentials: 'include'
+      await orderService.create({
+        vehicle_id: parseInt(osForm.vehicle_id),
+        description: osForm.description,
+        technician_ids: osForm.technician_ids,
+        items: osForm.items,
+        notes: osForm.notes,
+        checklist: osForm.checklist,
+        checkin_images: osForm.checkin_images,
+        entry_date: osForm.entry_date,
+        exit_date: osForm.exit_date,
+        is_priority: osForm.is_priority
       });
-      if (res.ok) {
-        toast.success('Ordem de Serviço criada com sucesso!');
-        setOsForm({ 
-          vehicle_id: '', 
-          description: '', 
-          technician_ids: [], 
-          notes: '', 
-          checklist: {
-            fuel_level: '1/4',
-            scratches: false,
-            spare_tire: true,
-            triangle: true,
-            jack: true,
-            documents: true,
-            personal_items: false
-          },
-          items: [], 
-          checkin_images: [],
-          entry_date: new Date().toISOString().split('T')[0],
-          exit_date: '',
-          is_priority: false
-        });
-        fetchStats();
-      } else {
-        const errData = await res.json();
-        toast.error(`Erro: ${errData.error || 'Falha ao criar OS'}`);
-      }
+      toast.success('Ordem de Serviço criada com sucesso!');
+      setOsForm({
+        vehicle_id: '',
+        description: '',
+        technician_ids: [],
+        notes: '',
+        checklist: {
+          fuel_level: '1/4',
+          scratches: false,
+          spare_tire: true,
+          triangle: true,
+          jack: true,
+          documents: true,
+          personal_items: false
+        },
+        items: [],
+        checkin_images: [],
+        entry_date: new Date().toISOString().split('T')[0],
+        exit_date: '',
+        is_priority: false
+      });
+      fetchStats();
     } catch (err) { 
       console.error(err); 
-      toast.error('Erro de conexão ao criar OS');
+      toast.error(err instanceof ApiError ? err.message : 'Erro de conexão ao criar OS');
     } finally {
       setLoading(false);
     }

@@ -2,6 +2,10 @@
 
 ## Atual
 
+- Migradas chamadas de API de Dashboard, Ordens e AuthContext para services por dominio.
+- Centralizado o uso de `ApiError` para mensagens de erro em fluxos migrados.
+- Aplicado `LoadingState` em Ordens como primeiro uso seguro da base UI.
+- Tipos de O.S. atualizados com campos ja usados pela tela (`description` e `tests`).
 - Removida a aba Produtos da experiencia principal.
 - Removida a rota visual ativa de inventario/produtos.
 - Mantidos backend, banco e rotas de products como legado tecnico temporario.

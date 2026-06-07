@@ -18,6 +18,10 @@
 - `src/types`: tipos por dominio, extraidos de forma gradual.
 - `src/modules`: fronteiras futuras por modulo.
 
+## Services
+
+Novas chamadas de API devem usar `src/services` e `apiRequest` em vez de `fetch` direto nos componentes. Dashboard, Ordens e AuthContext ja foram migrados como primeira etapa. Demais telas devem migrar gradualmente para preservar comportamento.
+
 ## Decisao Arquitetural
 
 O sistema nao deve ser organizado ao redor de produtos, loja ou estoque comercial. A organizacao desejada e por operacao de oficina: atendimento, clientes, veiculos, O.S., diagnostico, agenda, financeiro operacional, equipe, relatorios e configuracoes.

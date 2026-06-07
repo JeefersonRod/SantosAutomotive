@@ -97,6 +97,7 @@ export interface ServiceOrder {
   id: number;
   vehicle_id: number;
   technician_ids?: number[];
+  description?: string;
   status: 'pending' | 'in_progress' | 'completed';
   total_amount: number;
   notes?: string;
@@ -112,5 +113,14 @@ export interface ServiceOrder {
   customer_phone?: string;
   technician_names?: string[];
   items?: OrderItem[];
+  tests?: OrderTest[];
   note_id?: number;
+}
+
+export interface OrderTest {
+  id?: number;
+  order_id?: number;
+  component_name: string;
+  result: string;
+  notes?: string;
 }

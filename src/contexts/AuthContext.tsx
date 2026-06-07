@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '../types';
+import { authService } from '../services';
 
 interface AuthContextType {
   user: User | null;
@@ -28,13 +29,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const checkAuth = async () => {
     try {
-      const res = await fetch('/api/auth/me', { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
-        setUser(data);
-      } else {
-        setUser(null);
-      }
+      const data = await authService.me();
+      setUser(data);
     } catch (err) {
       console.error('Auth check failed', err);
       setUser(null);
@@ -42,27 +38,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const login = async (email: string, password: string) => {
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: email, password }),
-      credentials: 'include'
-    });
-
-    if (res.ok) {
-      const data = await res.json();
-      // Small delay to ensure cookie is processed by the browser
-      await new Promise(resolve => setTimeout(resolve, 500));
-      setUser(data);
-    } else {
-      const errorData = await res.json();
-      throw new Error(errorData.error || 'Login falhou');
-    }
+    const data = await authService.login(email, password);
+    // Small delay to ensure cookie is processed by the browser
+    await new Promise(resolve => setTimeout(resolve, 500));
+    setUser(data);
   };
 
   const logout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+      await authService.logout();
       setUser(null);
     } catch (err) {
       console.error('Logout failed', err);

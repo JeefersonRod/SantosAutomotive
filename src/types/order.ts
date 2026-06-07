@@ -1,1 +1,1 @@
-export type { OrderItem, ServiceOrder } from '../types';
+export type { OrderItem, OrderTest, ServiceOrder } from '../types';

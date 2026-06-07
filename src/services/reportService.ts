@@ -1,5 +1,5 @@
 import { apiRequest } from './api';
 
 export const reportService = {
-  stats: (query = '') => apiRequest<Record<string, unknown>>(`/api/stats${query}`),
+  stats: <T = Record<string, unknown>>(query = '') => apiRequest<T>(`/api/stats${query}`),
 };

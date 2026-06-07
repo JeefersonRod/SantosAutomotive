@@ -5,8 +5,9 @@ import { toast } from 'sonner';
 import { ServiceOrder, OrderItem, Vehicle, StaffMember } from '../types';
 import MultiImageUpload from './MultiImageUpload';
 import { useAuth } from '../contexts/AuthContext';
-
-const API_URL = '/api';
+import { ApiError } from '../services/api';
+import { orderService, staffService, vehicleService } from '../services';
+import { LoadingState } from './ui';
 
 const PREDEFINED_COMPONENTS = [
   "Sensor de Pressão do Rail",
@@ -79,8 +80,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
 
   const fetchOrders = async () => {
     try {
-      const res = await fetch(`${API_URL}/orders`, { credentials: 'include' });
-      const data = await res.json();
+      const data = await orderService.list();
       if (Array.isArray(data)) {
         setOrders(data);
       } else {
@@ -97,8 +97,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
 
   const fetchVehicles = async () => {
     try {
-      const res = await fetch(`${API_URL}/vehicles`, { credentials: 'include' });
-      const data = await res.json();
+      const data = await vehicleService.list();
       if (Array.isArray(data)) {
         setVehicles(data);
       } else {
@@ -113,10 +112,9 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
 
   const fetchStaff = async () => {
     try {
-      const res = await fetch(`${API_URL}/staff`, { credentials: 'include' });
-      const data = await res.json();
+      const data = await staffService.listActive();
       if (Array.isArray(data)) {
-        setStaff(data.filter((m: StaffMember) => m.active));
+        setStaff(data);
       } else {
         console.error('Staff data is not an array:', data);
         setStaff([]);
@@ -140,35 +138,37 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
     }
   };
 
-  const handleOpenModal = (order?: ServiceOrder) => {
+  const handleOpenModal = async (order?: ServiceOrder) => {
     if (order) {
       setEditingOrder(order);
-      fetch(`${API_URL}/orders/${order.id}`, { credentials: 'include' })
-        .then(res => res.json())
-        .then(data => {
-          setFormData({
-            vehicle_id: data.vehicle_id,
-            technician_ids: data.technician_ids || [],
-            description: data.description || '',
-            status: data.status,
-            notes: data.notes || '',
-            checklist: data.checklist || {
-              fuel_level: '1/4',
-              scratches: false,
-              spare_tire: true,
-              triangle: true,
-              jack: true,
-              documents: true,
-              personal_items: false
-            },
-            items: data.items || [],
-            checkin_images: safeParseImages(data.checkin_images),
-            tests: data.tests || [],
-            entry_date: data.entry_date ? new Date(data.entry_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-            exit_date: data.exit_date ? new Date(data.exit_date).toISOString().split('T')[0] : '',
-            is_priority: !!data.is_priority
-          });
+      try {
+        const data = await orderService.get(order.id);
+        setFormData({
+          vehicle_id: data.vehicle_id,
+          technician_ids: data.technician_ids || [],
+          description: data.description || '',
+          status: data.status,
+          notes: data.notes || '',
+          checklist: data.checklist || {
+            fuel_level: '1/4',
+            scratches: false,
+            spare_tire: true,
+            triangle: true,
+            jack: true,
+            documents: true,
+            personal_items: false
+          },
+          items: data.items || [],
+          checkin_images: safeParseImages(data.checkin_images),
+          tests: data.tests || [],
+          entry_date: data.entry_date ? new Date(data.entry_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+          exit_date: data.exit_date ? new Date(data.exit_date).toISOString().split('T')[0] : '',
+          is_priority: !!data.is_priority
         });
+      } catch (err) {
+        console.error('Failed to fetch order details:', err);
+        toast.error(err instanceof ApiError ? err.message : 'Erro ao carregar ordem');
+      }
     } else {
       setEditingOrder(null);
       setFormData({ 
@@ -196,50 +196,36 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
       create_note = window.confirm('Deseja converter esta Ordem de Serviço em uma Nota de Serviço?');
     }
 
-    const method = editingOrder ? 'PUT' : 'POST';
-    const url = editingOrder ? `${API_URL}/orders/${editingOrder.id}` : `${API_URL}/orders`;
-
     try {
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...formData, create_note }),
-        credentials: 'include'
-      });
-      if (res.ok) {
-        fetchOrders();
-        setIsModalOpen(false);
-        toast.success(editingOrder ? 'Ordem atualizada!' : 'Ordem criada com sucesso!');
+      if (editingOrder) {
+        await orderService.update(editingOrder.id, { ...formData, create_note });
       } else {
-        const error = await res.json();
-        toast.error(error.error || 'Erro ao salvar ordem');
+        await orderService.create({ ...formData, create_note });
       }
+      fetchOrders();
+      setIsModalOpen(false);
+      toast.success(editingOrder ? 'Ordem atualizada!' : 'Ordem criada com sucesso!');
     } catch (err) { 
       console.error(err);
-      toast.error('Erro de conexão ao salvar ordem');
+      toast.error(err instanceof ApiError ? err.message : 'Erro de conexão ao salvar ordem');
     }
   };
 
   const deleteOrder = async (id: number) => {
     if (window.confirm('Excluir ordem de serviço?')) {
       try {
-        const res = await fetch(`${API_URL}/orders/${id}`, { method: 'DELETE', credentials: 'include' });
-        if (res.ok) {
-          fetchOrders();
-          toast.success('Ordem excluída');
-        } else {
-          toast.error('Erro ao excluir ordem');
-        }
+        await orderService.remove(id);
+        fetchOrders();
+        toast.success('Ordem excluída');
       } catch (err) {
-        toast.error('Erro de conexão');
+        toast.error(err instanceof ApiError ? err.message : 'Erro de conexão');
       }
     }
   };
 
   const handlePrintOrder = async (orderId: number) => {
     try {
-      const res = await fetch(`${API_URL}/orders/${orderId}`, { credentials: 'include' });
-      const order = await res.json();
+      const order = await orderService.get(orderId);
       
       const printWindow = window.open('', '_blank');
       if (!printWindow) return;
@@ -407,6 +393,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
       printWindow.document.close();
     } catch (err) {
       console.error('Erro ao imprimir OS:', err);
+      toast.error(err instanceof ApiError ? err.message : 'Erro ao imprimir OS');
     }
   };
 
@@ -416,13 +403,12 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
       create_note = window.confirm('Deseja converter esta Ordem de Serviço em uma Nota de Serviço?');
     }
 
-    await fetch(`${API_URL}/orders/${id}/status`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status, create_note }),
-      credentials: 'include'
-    });
-    fetchOrders();
+    try {
+      await orderService.updateStatus(id, { status, create_note });
+      fetchOrders();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Erro ao atualizar status');
+    }
   };
 
   const filteredOrders = orders.filter(o => {
@@ -501,10 +487,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
       {/* Orders List */}
       <div className="grid gap-5">
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-4">
-            <div className="w-10 h-10 border-4 border-brand-primary/20 border-t-brand-primary rounded-full animate-spin" />
-            <p className="text-surface-500 font-medium">Carregando ordens de serviço...</p>
-          </div>
+          <LoadingState label="Carregando ordens de serviço..." />
         ) : filteredOrders.length === 0 ? (
           <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-surface-300">
             <Receipt className="w-12 h-12 text-surface-200 mx-auto mb-4" />
