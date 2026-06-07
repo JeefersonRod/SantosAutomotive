@@ -83,7 +83,6 @@ try {
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const isProduction = process.env.NODE_ENV === "production";
-const isVercel = !!process.env.VERCEL;
 
 app.set("trust proxy", true);
 app.use(cors({
@@ -211,7 +210,7 @@ const apiRouter = express.Router();
 apiRouter.use((req, res, next) => {
   if (!supabase) {
     return res.status(503).json({ 
-      error: "Servidor não configurado corretamente: SUPABASE_URL ou SUPABASE_KEY ausentes no ambiente do Vercel." 
+      error: "Servidor não configurado corretamente: SUPABASE_URL ou SUPABASE_KEY ausentes no ambiente do Railway." 
     });
   }
   next();
@@ -1447,10 +1446,10 @@ apiRouter.use(ensureAdmin);
 app.use("/api", apiRouter);
 
 // Vite / Static handling
-if (!isProduction && !isVercel) {
+if (!isProduction) {
   const setupVite = async () => {
     try {
-      // Dynamic import to avoid loading Vite/Rollup in production (Vercel)
+      // Dynamic import keeps production Railway startup focused on the built dist files.
       const { createServer: createViteServer } = await import("vite");
       const vite = await createViteServer({
         server: { middlewareMode: true },
@@ -1480,11 +1479,8 @@ if (!isProduction && !isVercel) {
   });
 }
 
-// Only listen if not on Vercel or in development
-if (!isVercel) {
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://0.0.0.0:${PORT}`);
-  });
-}
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server running on http://0.0.0.0:${PORT}`);
+});
 
 export default app;

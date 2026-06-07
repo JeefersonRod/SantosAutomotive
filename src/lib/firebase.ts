@@ -16,7 +16,7 @@ const firebaseConfig = {
 const isConfigValid = !!firebaseConfig.apiKey && !!firebaseConfig.projectId;
 
 if (!isConfigValid) {
-  console.error("CRITICAL: Firebase configuration is missing! Check your environment variables on Vercel.");
+  console.error("CRITICAL: Firebase configuration is missing! Check your environment variables on Railway.");
 }
 
 const app = isConfigValid ? initializeApp(firebaseConfig) : null;
