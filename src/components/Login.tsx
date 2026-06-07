@@ -44,11 +44,10 @@ export default function Login() {
       >
         <div className="bg-[#111622]/95 border border-white/10 rounded-[2rem] p-6 sm:p-8 shadow-2xl shadow-black/40">
           <div className="flex flex-col items-center text-center mb-8">
-            <div className="w-16 h-16 bg-surface-950 rounded-2xl border border-white/10 p-2 shadow-lg shadow-brand-primary/10 mb-4">
-              <img src="/logo.svg" alt="Santos Automotive" className="w-full h-full object-contain" />
+            <div className="w-20 h-20 bg-surface-950 rounded-2xl border border-white/10 p-2 shadow-lg shadow-brand-primary/10 mb-4 overflow-hidden">
+              <img src="/logo.jpg" alt="Santos Automotive" className="w-full h-full object-contain" />
             </div>
-            <h1 className="text-3xl font-display font-bold text-white tracking-tight">Santos Automotive</h1>
-            <p className="text-surface-400 font-medium mt-1">Sistema interno da oficina</p>
+            <h1 className="text-3xl font-display font-bold text-white tracking-tight notranslate" translate="no">Santos Automotive</h1>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -109,9 +108,6 @@ export default function Login() {
             </button>
           </form>
 
-          <p className="mt-7 text-center text-sm text-surface-500">
-            Acesso exclusivo aos integrantes da oficina.
-          </p>
         </div>
       </motion.div>
     </div>

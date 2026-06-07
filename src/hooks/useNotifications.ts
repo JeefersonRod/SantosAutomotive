@@ -82,7 +82,7 @@ export const useNotifications = (userId: string | undefined) => {
       if (payload.notification && 'Notification' in window) {
         new Notification(payload.notification.title || 'Nova Notificação', {
           body: payload.notification.body,
-          icon: '/logo.svg'
+          icon: '/logo.jpg'
         });
       }
     });

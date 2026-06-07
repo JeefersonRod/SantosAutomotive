@@ -67,8 +67,8 @@ function AppContent() {
             <div className="flex items-center gap-3">
               <div className="bg-surface-950 p-1 rounded-xl shadow-lg shadow-brand-primary/10 overflow-hidden w-10 h-10 flex items-center justify-center border border-surface-800">
                 <img 
-                  src="/logo.svg" 
-                  alt="Santos Auto Logo" 
+                  src="/logo.jpg" 
+                  alt="Santos Automotive Logo" 
                   className="w-full h-full object-contain"
                   referrerPolicy="no-referrer"
                   onError={(e) => {
@@ -82,7 +82,7 @@ function AppContent() {
               </div>
               {isSidebarOpen && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                  <h1 className="text-lg font-display font-bold tracking-tight">Santos Auto</h1>
+                  <h1 className="text-lg font-display font-bold tracking-tight notranslate" translate="no">Santos Automotive</h1>
                   <p className="micro-label">Tech Manager</p>
                 </motion.div>
               )}
@@ -142,8 +142,8 @@ function AppContent() {
           <div className="flex items-center gap-4">
             <div className="md:hidden bg-surface-950 p-1 rounded-lg w-10 h-10 flex items-center justify-center overflow-hidden border border-surface-800">
               <img 
-                src="/logo.svg" 
-                alt="Santos Auto Logo" 
+                src="/logo.jpg" 
+                alt="Santos Automotive Logo" 
                 className="w-full h-full object-contain"
                 referrerPolicy="no-referrer"
                 onError={(e) => {
@@ -157,7 +157,7 @@ function AppContent() {
             </div>
             <div className="flex flex-col">
               <div className="flex items-center gap-2 text-[10px] font-bold text-surface-400 uppercase tracking-widest mb-0.5">
-                <Link to="/" className="hover:text-brand-primary transition-colors">Santos Auto</Link>
+                <Link to="/" className="hover:text-brand-primary transition-colors notranslate" translate="no">Santos Automotive</Link>
                 {location.pathname !== '/' && (
                   <>
                     <ChevronRight className="w-3 h-3" />
