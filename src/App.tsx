@@ -13,7 +13,6 @@ import OrdersTab from './components/OrdersTab';
 import NotesTab from './components/NotesTab';
 import InventoryTab from './components/InventoryTab';
 import StaffTab from './components/StaffTab';
-import InstallPrompt from './components/InstallPrompt';
 import UserProfileModal from './components/UserProfileModal';
 
 const NAV_ITEMS = [
@@ -275,7 +274,6 @@ export default function App() {
     <HashRouter>
       <AuthProvider>
         <AppContent />
-        <InstallPrompt />
         <Toaster position="top-right" expand={false} richColors closeButton />
       </AuthProvider>
     </HashRouter>
