@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Trash2, Edit2, User, Phone, Mail, FileText, X, ChevronRight, Car as CarIcon, ArrowLeft, Receipt, Clock, CheckCircle2, AlertCircle, TrendingUp, Calendar, Camera, ArrowUpRight } from 'lucide-react';
+import { Plus, Search, Trash2, Edit2, User, Phone, Mail, FileText, X, ChevronRight, Car as CarIcon, ArrowLeft, Receipt, Clock, CheckCircle2, AlertCircle, TrendingUp, Calendar, Camera, ArrowUpRight, Filter } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { IMaskInput } from 'react-imask';
 import { toast } from 'sonner';
@@ -15,6 +15,8 @@ export default function ClientsTab() {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [contactFilter, setContactFilter] = useState<'all' | 'phone' | 'email' | 'document'>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -212,11 +214,19 @@ export default function ClientsTab() {
     }
   };
 
-  const filteredClients = Array.isArray(clients) ? clients.filter(c => 
-    c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.document?.includes(searchTerm) ||
-    c.phone?.includes(searchTerm)
-  ) : [];
+  const filteredClients = Array.isArray(clients) ? clients.filter(c => {
+    const matchesSearch =
+      c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.document?.includes(searchTerm) ||
+      c.phone?.includes(searchTerm);
+    const matchesContact =
+      contactFilter === 'all' ||
+      (contactFilter === 'phone' && !!c.phone) ||
+      (contactFilter === 'email' && !!c.email) ||
+      (contactFilter === 'document' && !!c.document);
+
+    return matchesSearch && matchesContact;
+  }) : [];
 
   const totalSpent = Array.isArray(clientOrders) ? clientOrders.reduce((sum, order) => sum + (order.total_amount || 0), 0) : 0;
 
@@ -447,6 +457,17 @@ export default function ClientsTab() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
+        <button
+          type="button"
+          onClick={() => setShowFilters(!showFilters)}
+          className={`bg-white px-4 py-4 rounded-2xl border flex items-center justify-center gap-2 font-bold text-sm transition-colors ${
+            showFilters || contactFilter !== 'all'
+              ? 'text-brand-primary border-brand-primary/30 bg-brand-primary/5'
+              : 'text-surface-600 border-surface-200 hover:bg-surface-50'
+          }`}
+        >
+          <Filter className="w-4 h-4" /> Filtros
+        </button>
         {user?.permissions !== 'technician' && (
           <button 
             id="add-client-btn"
@@ -460,6 +481,21 @@ export default function ClientsTab() {
           </button>
         )}
       </div>
+
+      {showFilters && (
+        <div className="bg-white border border-surface-200 rounded-2xl p-4 flex flex-col sm:flex-row gap-3">
+          <select
+            value={contactFilter}
+            onChange={(e) => setContactFilter(e.target.value as typeof contactFilter)}
+            className="px-4 py-3 bg-surface-50 border border-surface-200 rounded-xl outline-none font-medium text-sm"
+          >
+            <option value="all">Todos os clientes</option>
+            <option value="phone">Com telefone</option>
+            <option value="email">Com e-mail</option>
+            <option value="document">Com documento</option>
+          </select>
+        </div>
+      )}
 
       <div className="grid gap-5">
         {loading ? (

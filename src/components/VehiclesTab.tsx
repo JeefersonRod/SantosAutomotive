@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Trash2, Edit2, Car, User, Hash, X, Camera, Fuel, Gauge, Calendar, Palette, Wand2 } from 'lucide-react';
+import { Plus, Search, Trash2, Edit2, Car, User, Hash, X, Camera, Fuel, Gauge, Calendar, Palette, Wand2, Filter } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { IMaskInput } from 'react-imask';
 import { toast } from 'sonner';
@@ -15,6 +15,9 @@ export default function VehiclesTab() {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [fuelFilter, setFuelFilter] = useState('all');
+  const [yearFilter, setYearFilter] = useState('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
   const [formData, setFormData] = useState({
@@ -158,11 +161,19 @@ export default function VehiclesTab() {
     }
   };
 
-  const filteredVehicles = Array.isArray(vehicles) ? vehicles.filter(v => 
-    v.plate.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    v.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    v.client_name?.toLowerCase().includes(searchTerm.toLowerCase())
-  ) : [];
+  const fuelOptions = Array.from(new Set(vehicles.map(v => v.fuel).filter(Boolean))).sort();
+  const yearOptions = Array.from(new Set(vehicles.map(v => v.year).filter(Boolean))).sort((a, b) => Number(b) - Number(a));
+
+  const filteredVehicles = Array.isArray(vehicles) ? vehicles.filter(v => {
+    const matchesSearch =
+      v.plate.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      v.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      v.client_name?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesFuel = fuelFilter === 'all' || v.fuel === fuelFilter;
+    const matchesYear = yearFilter === 'all' || String(v.year) === yearFilter;
+
+    return matchesSearch && matchesFuel && matchesYear;
+  }) : [];
 
   return (
     <div className="space-y-10">
@@ -177,6 +188,17 @@ export default function VehiclesTab() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
+        <button
+          type="button"
+          onClick={() => setShowFilters(!showFilters)}
+          className={`bg-white px-4 py-4 rounded-2xl border flex items-center justify-center gap-2 font-bold text-sm transition-colors ${
+            showFilters || fuelFilter !== 'all' || yearFilter !== 'all'
+              ? 'text-brand-primary border-brand-primary/30 bg-brand-primary/5'
+              : 'text-surface-600 border-surface-200 hover:bg-surface-50'
+          }`}
+        >
+          <Filter className="w-4 h-4" /> Filtros
+        </button>
         {user?.permissions !== 'technician' && (
           <button 
             onClick={() => handleOpenModal()}
@@ -186,6 +208,31 @@ export default function VehiclesTab() {
           </button>
         )}
       </div>
+
+      {showFilters && (
+        <div className="bg-white border border-surface-200 rounded-2xl p-4 flex flex-col sm:flex-row gap-3">
+          <select
+            value={fuelFilter}
+            onChange={(e) => setFuelFilter(e.target.value)}
+            className="px-4 py-3 bg-surface-50 border border-surface-200 rounded-xl outline-none font-medium text-sm"
+          >
+            <option value="all">Todos os combustíveis</option>
+            {fuelOptions.map(fuel => (
+              <option key={fuel} value={fuel}>{fuel}</option>
+            ))}
+          </select>
+          <select
+            value={yearFilter}
+            onChange={(e) => setYearFilter(e.target.value)}
+            className="px-4 py-3 bg-surface-50 border border-surface-200 rounded-xl outline-none font-medium text-sm"
+          >
+            <option value="all">Todos os anos</option>
+            {yearOptions.map(year => (
+              <option key={year} value={year}>{year}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div className="grid gap-5">
         {loading ? (

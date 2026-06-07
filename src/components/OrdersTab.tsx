@@ -25,6 +25,9 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<'all' | ServiceOrder['status']>('all');
+  const [priorityFilter, setPriorityFilter] = useState<'all' | 'priority' | 'normal'>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<ServiceOrder | null>(null);
   
@@ -427,12 +430,20 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
     fetchOrders();
   };
 
-  const filteredOrders = orders.filter(o => 
-    o.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    o.plate?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    o.vehicle_model?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    o.description?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredOrders = orders.filter(o => {
+    const matchesSearch =
+      o.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      o.plate?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      o.vehicle_model?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      o.description?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || o.status === statusFilter;
+    const matchesPriority =
+      priorityFilter === 'all' ||
+      (priorityFilter === 'priority' && o.is_priority) ||
+      (priorityFilter === 'normal' && !o.is_priority);
+
+    return matchesSearch && matchesStatus && matchesPriority;
+  });
 
   return (
     <div className="space-y-8">
@@ -449,7 +460,15 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
           />
         </div>
         <div className="flex gap-3">
-          <button className="bg-white text-surface-600 px-4 py-3.5 rounded-2xl border border-surface-200 flex items-center gap-2 font-bold text-sm hover:bg-surface-50 transition-colors">
+          <button
+            type="button"
+            onClick={() => setShowFilters(!showFilters)}
+            className={`bg-white px-4 py-3.5 rounded-2xl border flex items-center gap-2 font-bold text-sm transition-colors ${
+              showFilters || statusFilter !== 'all' || priorityFilter !== 'all'
+                ? 'text-brand-primary border-brand-primary/30 bg-brand-primary/5'
+                : 'text-surface-600 border-surface-200 hover:bg-surface-50'
+            }`}
+          >
             <Filter className="w-4 h-4" /> Filtros
           </button>
           {user?.permissions !== 'technician' && (
@@ -459,6 +478,30 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
           )}
         </div>
       </div>
+
+      {showFilters && (
+        <div className="bg-white border border-surface-200 rounded-2xl p-4 flex flex-col sm:flex-row gap-3">
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
+            className="px-4 py-3 bg-surface-50 border border-surface-200 rounded-xl outline-none font-medium text-sm"
+          >
+            <option value="all">Todos os status</option>
+            <option value="pending">Pendente</option>
+            <option value="in_progress">Em execução</option>
+            <option value="completed">Concluída</option>
+          </select>
+          <select
+            value={priorityFilter}
+            onChange={(e) => setPriorityFilter(e.target.value as typeof priorityFilter)}
+            className="px-4 py-3 bg-surface-50 border border-surface-200 rounded-xl outline-none font-medium text-sm"
+          >
+            <option value="all">Todas as prioridades</option>
+            <option value="priority">Prioritárias</option>
+            <option value="normal">Sem prioridade</option>
+          </select>
+        </div>
+      )}
 
       {/* Orders List */}
       <div className="grid gap-5">

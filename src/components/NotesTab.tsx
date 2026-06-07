@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, StickyNote, Eye, Printer, ChevronRight, Calendar, User, Car as CarIcon, DollarSign, Plus, Trash2, Package, Hash, Pencil, Share2, X } from 'lucide-react';
+import { Search, StickyNote, Eye, Printer, ChevronRight, Calendar, User, Car as CarIcon, DollarSign, Plus, Trash2, Package, Hash, Pencil, Share2, X, Filter } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { IMaskInput } from 'react-imask';
 import { toast } from 'sonner';
@@ -14,6 +14,9 @@ export default function NotesTab() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [documentFilter, setDocumentFilter] = useState<'all' | 'note' | 'budget'>('all');
+  const [paymentFilter, setPaymentFilter] = useState<'all' | 'paid' | 'unpaid' | 'partial'>('all');
   const [viewingNote, setViewingNote] = useState<Note | null>(null);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -199,11 +202,16 @@ export default function NotesTab() {
     setFormData({ ...formData, items: newItems });
   };
 
-  const filteredNotes = notes.filter(note => 
-    note.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    note.plate?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    note.id.toString().includes(searchTerm)
-  );
+  const filteredNotes = notes.filter(note => {
+    const matchesSearch =
+      note.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      note.plate?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      note.id.toString().includes(searchTerm);
+    const matchesDocument = documentFilter === 'all' || note.document_type === documentFilter;
+    const matchesPayment = paymentFilter === 'all' || note.payment_status === paymentFilter;
+
+    return matchesSearch && matchesDocument && matchesPayment;
+  });
 
   const handlePrint = () => {
     // Small delay to ensure any layout shifts are settled
@@ -267,6 +275,17 @@ export default function NotesTab() {
             className="w-full pl-12 pr-4 py-3 bg-white border border-surface-200 rounded-2xl outline-none focus:ring-2 focus:ring-brand-primary/10 focus:border-brand-primary transition-all shadow-sm"
           />
         </div>
+        <button
+          type="button"
+          onClick={() => setShowFilters(!showFilters)}
+          className={`bg-white px-4 py-3 rounded-2xl border flex items-center justify-center gap-2 font-bold text-sm transition-colors ${
+            showFilters || documentFilter !== 'all' || paymentFilter !== 'all'
+              ? 'text-brand-primary border-brand-primary/30 bg-brand-primary/5'
+              : 'text-surface-600 border-surface-200 hover:bg-surface-50'
+          }`}
+        >
+          <Filter className="w-4 h-4" /> Filtros
+        </button>
         <button 
           onClick={() => setIsModalOpen(true)}
           className="bg-brand-primary text-white px-6 py-3 rounded-2xl flex items-center gap-2 font-bold shadow-lg shadow-brand-primary/20 hover:bg-brand-primary/90 transition-all active:scale-95"
@@ -274,6 +293,30 @@ export default function NotesTab() {
           <Plus className="w-5 h-5" /> Nova Nota Manual
         </button>
       </div>
+
+      {showFilters && (
+        <div className="bg-white border border-surface-200 rounded-2xl p-4 flex flex-col sm:flex-row gap-3 print:hidden">
+          <select
+            value={documentFilter}
+            onChange={(e) => setDocumentFilter(e.target.value as typeof documentFilter)}
+            className="px-4 py-3 bg-surface-50 border border-surface-200 rounded-xl outline-none font-medium text-sm"
+          >
+            <option value="all">Todos os documentos</option>
+            <option value="note">Notas</option>
+            <option value="budget">Orçamentos</option>
+          </select>
+          <select
+            value={paymentFilter}
+            onChange={(e) => setPaymentFilter(e.target.value as typeof paymentFilter)}
+            className="px-4 py-3 bg-surface-50 border border-surface-200 rounded-xl outline-none font-medium text-sm"
+          >
+            <option value="all">Todos os pagamentos</option>
+            <option value="unpaid">Não pago</option>
+            <option value="partial">Parcial</option>
+            <option value="paid">Pago</option>
+          </select>
+        </div>
+      )}
 
       <div className="print:hidden">
         {loading ? (

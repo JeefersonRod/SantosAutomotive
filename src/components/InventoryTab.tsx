@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Package, Plus, Search, Trash2, Edit2, AlertTriangle, X, DollarSign, Hash, Tag, TrendingUp } from 'lucide-react';
+import { Package, Plus, Search, Trash2, Edit2, AlertTriangle, X, DollarSign, Hash, Tag, TrendingUp, Filter } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import { Product } from '../types';
@@ -12,6 +12,9 @@ export default function InventoryTab() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [stockFilter, setStockFilter] = useState<'all' | 'low' | 'promotion'>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState<Partial<Product>>({
@@ -111,10 +114,20 @@ export default function InventoryTab() {
     }
   };
 
-  const filteredProducts = products.filter(p => 
-    p.name.toLowerCase().includes(search.toLowerCase()) || 
-    p.category?.toLowerCase().includes(search.toLowerCase())
-  );
+  const categoryOptions = Array.from(new Set(products.map(p => p.category).filter(Boolean))).sort();
+
+  const filteredProducts = products.filter(p => {
+    const matchesSearch =
+      p.name.toLowerCase().includes(search.toLowerCase()) ||
+      p.category?.toLowerCase().includes(search.toLowerCase());
+    const matchesCategory = categoryFilter === 'all' || p.category === categoryFilter;
+    const matchesStock =
+      stockFilter === 'all' ||
+      (stockFilter === 'low' && p.stock_quantity <= (p.min_stock || 0)) ||
+      (stockFilter === 'promotion' && !!p.is_promotion);
+
+    return matchesSearch && matchesCategory && matchesStock;
+  });
 
   return (
     <div className="space-y-6">
@@ -129,6 +142,17 @@ export default function InventoryTab() {
             className="w-full pl-12 pr-4 py-3 bg-white border border-surface-200 rounded-xl focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition-all outline-none"
           />
         </div>
+        <button
+          type="button"
+          onClick={() => setShowFilters(!showFilters)}
+          className={`bg-white px-4 py-3 rounded-xl border flex items-center justify-center gap-2 font-bold text-sm transition-colors ${
+            showFilters || categoryFilter !== 'all' || stockFilter !== 'all'
+              ? 'text-brand-primary border-brand-primary/30 bg-brand-primary/5'
+              : 'text-surface-600 border-surface-200 hover:bg-surface-50'
+          }`}
+        >
+          <Filter className="w-4 h-4" /> Filtros
+        </button>
         {!isClient && (
           <button 
             onClick={() => handleOpenModal()}
@@ -139,6 +163,30 @@ export default function InventoryTab() {
           </button>
         )}
       </div>
+
+      {showFilters && (
+        <div className="bg-white border border-surface-200 rounded-2xl p-4 flex flex-col sm:flex-row gap-3">
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="px-4 py-3 bg-surface-50 border border-surface-200 rounded-xl outline-none font-medium text-sm"
+          >
+            <option value="all">Todas as categorias</option>
+            {categoryOptions.map(category => (
+              <option key={category} value={category}>{category}</option>
+            ))}
+          </select>
+          <select
+            value={stockFilter}
+            onChange={(e) => setStockFilter(e.target.value as typeof stockFilter)}
+            className="px-4 py-3 bg-surface-50 border border-surface-200 rounded-xl outline-none font-medium text-sm"
+          >
+            <option value="all">Todos os produtos</option>
+            <option value="low">Estoque baixo</option>
+            <option value="promotion">Promoções</option>
+          </select>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex justify-center py-12">

@@ -24,7 +24,9 @@ export default function StaffTab() {
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
+  const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<StaffMember | null>(null);
   const [formData, setFormData] = useState<Partial<StaffMember>>({
@@ -174,7 +176,11 @@ export default function StaffTab() {
     const matchesSearch = member.name.toLowerCase().includes(search.toLowerCase()) ||
       member.roles.some(r => r.toLowerCase().includes(search.toLowerCase()));
     const matchesRole = !selectedRole || member.roles.includes(selectedRole);
-    return matchesSearch && matchesRole;
+    const matchesActive =
+      activeFilter === 'all' ||
+      (activeFilter === 'active' && member.active) ||
+      (activeFilter === 'inactive' && !member.active);
+    return matchesSearch && matchesRole && matchesActive;
   }) : [];
 
   return (
@@ -190,31 +196,17 @@ export default function StaffTab() {
             className="w-full pl-12 pr-4 py-3 bg-white border border-surface-200 rounded-xl focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition-all outline-none"
           />
         </div>
-        <div className="flex gap-2 overflow-x-auto pb-2 xl:pb-0 no-scrollbar xl:max-w-[520px]">
-          <button 
-            onClick={() => setSelectedRole(null)}
-            className={`whitespace-nowrap px-4 py-2 rounded-lg border transition-colors text-sm font-medium ${
-              !selectedRole 
-                ? 'bg-brand-primary text-white border-brand-primary' 
-                : 'bg-white text-surface-600 border-surface-200 hover:bg-surface-50'
-            }`}
-          >
-            Todos
-          </button>
-          {Object.entries(AVAILABLE_ROLES).map(([key, { label }]) => (
-            <button 
-              key={key} 
-              onClick={() => setSelectedRole(key === selectedRole ? null : key)}
-              className={`whitespace-nowrap px-4 py-2 rounded-lg border transition-colors text-sm font-medium ${
-                selectedRole === key 
-                  ? 'bg-brand-primary text-white border-brand-primary' 
-                  : 'bg-white text-surface-600 border-surface-200 hover:bg-surface-50'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <button
+          type="button"
+          onClick={() => setShowFilters(!showFilters)}
+          className={`bg-white px-4 py-3 rounded-xl border flex items-center justify-center gap-2 font-bold text-sm transition-colors ${
+            showFilters || selectedRole || activeFilter !== 'all'
+              ? 'text-brand-primary border-brand-primary/30 bg-brand-primary/5'
+              : 'text-surface-600 border-surface-200 hover:bg-surface-50'
+          }`}
+        >
+          <Filter className="w-4 h-4" /> Filtros
+        </button>
         <button 
           onClick={() => handleOpenModal()}
           className="flex items-center justify-center gap-2 bg-brand-primary text-white px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-brand-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all whitespace-nowrap"
@@ -223,6 +215,30 @@ export default function StaffTab() {
           Novo Integrante
         </button>
       </div>
+
+      {showFilters && (
+        <div className="bg-white border border-surface-200 rounded-2xl p-4 flex flex-col sm:flex-row gap-3">
+          <select
+            value={selectedRole || 'all'}
+            onChange={(e) => setSelectedRole(e.target.value === 'all' ? null : e.target.value)}
+            className="px-4 py-3 bg-surface-50 border border-surface-200 rounded-xl outline-none font-medium text-sm"
+          >
+            <option value="all">Todos os setores</option>
+            {Object.entries(AVAILABLE_ROLES).map(([key, { label }]) => (
+              <option key={key} value={key}>{label}</option>
+            ))}
+          </select>
+          <select
+            value={activeFilter}
+            onChange={(e) => setActiveFilter(e.target.value as typeof activeFilter)}
+            className="px-4 py-3 bg-surface-50 border border-surface-200 rounded-xl outline-none font-medium text-sm"
+          >
+            <option value="all">Todos os integrantes</option>
+            <option value="active">Ativos</option>
+            <option value="inactive">Inativos</option>
+          </select>
+        </div>
+      )}
 
       {/* Registration Requests */}
       {requests.length > 0 && (
