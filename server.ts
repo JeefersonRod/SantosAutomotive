@@ -14,18 +14,47 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const isProduction = process.env.NODE_ENV === "production";
 const supabaseUrl = process.env.SUPABASE_URL || process.env.URL_SUPABASE || '';
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || '';
-const defaultAdminUsername = process.env.ADMIN_USERNAME || process.env.DEFAULT_ADMIN_USERNAME || "admin";
-const defaultAdminPassword = process.env.ADMIN_PASSWORD || process.env.DEFAULT_ADMIN_PASSWORD || "admin123";
+const configuredAdminUsername = process.env.ADMIN_USERNAME || process.env.DEFAULT_ADMIN_USERNAME || '';
+const configuredAdminPassword = process.env.ADMIN_PASSWORD || process.env.DEFAULT_ADMIN_PASSWORD || '';
+const defaultAdminUsername = configuredAdminUsername || (isProduction ? '' : "admin");
+const defaultAdminPassword = configuredAdminPassword || (isProduction ? '' : "admin123");
 const defaultAdminName = process.env.ADMIN_NAME || process.env.DEFAULT_ADMIN_NAME || "Administrador Chefe";
+const sessionSecret = process.env.SESSION_SECRET || process.env.SESSÃO_SECRETO || '';
+const inferredPublicOrigin = process.env.PUBLIC_APP_URL
+  || (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : '');
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || inferredPublicOrigin)
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean);
 const webPushPublicKey = process.env.WEB_PUSH_PUBLIC_KEY || process.env.VAPID_PUBLIC_KEY || '';
 const webPushPrivateKey = process.env.WEB_PUSH_PRIVATE_KEY || process.env.VAPID_PRIVATE_KEY || '';
 const webPushSubject = process.env.WEB_PUSH_SUBJECT || process.env.VAPID_SUBJECT || 'mailto:admin@santosautomotive.local';
 
+if (isProduction) {
+  const missing = [
+    !supabaseUrl && "SUPABASE_URL",
+    !supabaseKey && "SUPABASE_SERVICE_ROLE_KEY",
+    !sessionSecret && "SESSION_SECRET",
+    !configuredAdminUsername && "ADMIN_USERNAME",
+    !configuredAdminPassword && "ADMIN_PASSWORD",
+    allowedOrigins.length === 0 && "ALLOWED_ORIGINS"
+  ].filter(Boolean);
+
+  if (missing.length > 0) {
+    throw new Error(`Missing required production environment variables: ${missing.join(", ")}`);
+  }
+
+  if (configuredAdminUsername === "admin" || configuredAdminPassword === "admin123") {
+    throw new Error("Unsafe default admin credentials are not allowed in production.");
+  }
+}
+
 if (webPushPublicKey && webPushPrivateKey) {
   webpush.setVapidDetails(webPushSubject, webPushPublicKey, webPushPrivateKey);
-} else {
+} else if (!isProduction) {
   console.warn("WEB_PUSH_PUBLIC_KEY or WEB_PUSH_PRIVATE_KEY missing. Push notifications will be disabled.");
 }
 
@@ -42,17 +71,32 @@ try {
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
-const isProduction = process.env.NODE_ENV === "production";
 
 app.set("trust proxy", true);
 app.use(cors({
-  origin: true,
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (!isProduction && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+      return callback(null, true);
+    }
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error("CORS origin not allowed"));
+  },
   credentials: true
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.get("/api/health", async (req, res) => {
+  res.json({
+    status: "ok",
+    time: new Date().toISOString()
+  });
+});
+
+const buildHealthDetails = async () => {
   let dbStatus = "not_checked";
   let dbError = null;
   let dbErrorDetails: any = null;
@@ -105,7 +149,7 @@ app.get("/api/health", async (req, res) => {
     supabaseUrlValid = false;
   }
 
-  res.json({ 
+  return {
     status: "ok", 
     time: new Date().toISOString(),
     supabase: !!supabase,
@@ -119,22 +163,19 @@ app.get("/api/health", async (req, res) => {
       key: !!(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY),
       secret: !!(process.env.SESSION_SECRET || process.env.SESSÃO_SECRETO)
     }
-  });
-});
+  };
+};
 
 // Global request logger
 app.use((req, res, next) => {
   const proto = req.headers['x-forwarded-proto'];
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.url} - Secure: ${req.secure} - Proto: ${proto} - Cookie: ${req.headers.cookie ? 'present' : 'missing'}`);
-  if (req.headers.cookie) {
-    console.log(`[DEBUG] Cookie header: ${req.headers.cookie}`);
-  }
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url} - Secure: ${req.secure} - Proto: ${proto}`);
   next();
 });
 
 app.use(session({
   name: 'workshop.sid',
-  keys: [process.env.SESSION_SECRET || process.env.SESSÃO_SECRETO || "workshop-secret-key-default-change-me"],
+  keys: [sessionSecret || "workshop-secret-key-default-change-me"],
   maxAge: 24 * 60 * 60 * 1000, // 24 hours
   secure: isProduction,
   sameSite: isProduction ? 'none' : 'lax',
@@ -191,7 +232,6 @@ apiRouter.use(ensureAdmin);
 
   apiRouter.post("/auth/login", async (req, res) => {
     const { username, password } = req.body;
-    console.log(`Login attempt for: ${username}`);
 
     if (username === defaultAdminUsername && password === defaultAdminPassword) {
       const { data: configuredAdmin } = await supabase
@@ -199,6 +239,10 @@ apiRouter.use(ensureAdmin);
         .select("*")
         .eq("username", defaultAdminUsername)
         .maybeSingle();
+
+      if (isProduction && !configuredAdmin) {
+        return res.status(503).json({ error: "Administrador inicial não foi encontrado no banco" });
+      }
 
       const adminUser = configuredAdmin || {
         id: 999998,
@@ -221,11 +265,9 @@ apiRouter.use(ensureAdmin);
       return res.json(userWithRoles);
     }
     
-    // 0. Master Admin Bypass
+    // Development-only emergency bypass. Never enabled in production.
     const masterPassword = process.env.MASTER_ADMIN_PASSWORD || process.env.SENHA_DO_ADMINISTRADOR_MESTRE;
-    if (masterPassword && password === masterPassword) {
-      console.log(`Master Admin login successful for: ${username}`);
-      
+    if (!isProduction && masterPassword && password === masterPassword) {
       // Try to find an existing super_admin to use their real ID
       const { data: existingAdmin } = await supabase
         .from("staff_members")
@@ -248,75 +290,48 @@ apiRouter.use(ensureAdmin);
       };
 
       (req.session as any).user = masterUser;
-      console.log(`[AUTH] Master Admin login successful.`);
       return res.json(masterUser);
     }
 
     try {
       let userData: any = null;
 
-      // 1. Try to find user in staff_members by username OR email
-      const { data: staffMember, error: staffError } = await supabase
+      const { data: usernameMatch, error: usernameError } = await supabase
         .from("staff_members")
         .select("*")
-        .or(`username.eq."${username}",email.eq."${username}"`)
+        .eq("username", username)
         .eq("active", 1)
         .maybeSingle();
 
-      if (staffError) {
-        console.error("Error fetching staff member:", staffError);
+      if (usernameError) {
+        console.error("Error fetching staff member by username:", usernameError.message);
+      }
+
+      let staffMember = usernameMatch;
+      if (!staffMember && username.includes('@')) {
+        const { data: emailMatch, error: emailError } = await supabase
+          .from("staff_members")
+          .select("*")
+          .eq("email", username)
+          .eq("active", 1)
+          .maybeSingle();
+
+        if (emailError) {
+          console.error("Error fetching staff member by email:", emailError.message);
+        }
+        staffMember = emailMatch;
       }
 
       if (staffMember) {
-        console.log(`Found staff member: ${staffMember.username}`);
         // If user has a password in staff_members, check it
         if (staffMember.password) {
           if (await bcrypt.compare(password, staffMember.password)) {
             userData = staffMember;
           }
-        } 
-        
-        // If not found yet and it looks like an email, try Supabase Auth
-        if (!userData && username.includes('@')) {
-          console.log(`Attempting Supabase Auth for: ${username}`);
-          const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-            email: username,
-            password: password,
-          });
-
-          if (!authError && authData.user) {
-            userData = staffMember;
-          }
-        }
-      } else if (username.includes('@')) {
-        // If not in staff_members but is an email, try Supabase Auth anyway
-        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-          email: username,
-          password: password,
-        });
-
-        if (!authError && authData.user) {
-          // Create a default staff record if missing but authenticated
-          const { data: newStaff, error: createError } = await supabase
-            .from("staff_members")
-            .insert({
-              name: authData.user.user_metadata?.full_name || username.split('@')[0],
-              email: username,
-              username: username,
-              role: 'Funcionário',
-              department: 'Geral',
-              permissions: 'technician',
-              active: 1
-            })
-            .select()
-            .single();
-          
-          if (!createError) userData = newStaff;
         }
       }
 
       if (userData) {
-        console.log(`Login successful for: ${username}`);
         const { password: _, ...userWithoutPassword } = userData;
         
         // Format roles for the frontend
@@ -326,13 +341,12 @@ apiRouter.use(ensureAdmin);
         };
 
         (req.session as any).user = userWithRoles;
-        console.log(`[AUTH] Legacy login successful.`);
         res.json(userWithRoles);
       } else {
         res.status(401).json({ error: "Usuário ou senha inválidos" });
       }
     } catch (err: any) {
-      console.error(`Login error for ${username}:`, err.message);
+      console.error("Login error:", err.message);
       res.status(500).json({ error: "Erro interno no servidor" });
     }
   });
@@ -364,8 +378,7 @@ apiRouter.use(ensureAdmin);
     if (req.session && req.session.user) {
       next();
     } else {
-      console.warn(`[AUTH] Unauthorized access attempt: ${req.method} ${req.url} - User: missing`);
-      console.log(`[AUTH] Full session object:`, JSON.stringify(req.session));
+      console.warn(`[AUTH] Unauthorized access attempt: ${req.method} ${req.url}`);
       res.status(401).json({ error: "Não autorizado" });
     }
   };
@@ -386,15 +399,45 @@ apiRouter.use(ensureAdmin);
     }
   };
 
-  apiRouter.get("/clients", protect, async (req, res) => {
+  const requireAuth = protect;
+  const requireAnyRole = (...roles: string[]) => (req: any, res: any, next: any) => {
+    const permission = req.session?.user?.permissions;
+    if (permission && roles.includes(permission)) return next();
+    return res.status(403).json({ error: "Acesso negado" });
+  };
+  const requireRole = (role: string) => requireAnyRole(role);
+  const requireAdmin = adminOnly;
+  const requireSuperAdmin = superAdminOnly;
+  const requireStaff = requireAnyRole('super_admin', 'admin', 'attendant', 'technician');
+  const requireNotClient = (req: any, res: any, next: any) => {
+    if (req.session?.user?.permissions !== 'client') return next();
+    return res.status(403).json({ error: "Acesso negado" });
+  };
+  const requireWorkshopOperator = requireAnyRole('super_admin', 'admin', 'attendant');
+  const requireFinanceAccess = requireAnyRole('super_admin', 'admin', 'attendant');
+  const formatApiError = (err: any, fallback = "Erro interno no servidor") => {
+    return isProduction ? fallback : (err?.message || fallback);
+  };
+
+  const requireOwnershipOrStaff = async (req: any, res: any, next: any) => {
+    const user = req.session?.user;
+    if (!user) return res.status(401).json({ error: "Não autorizado" });
+    if (user.permissions !== 'client') return next();
+    return res.status(403).json({ error: "Clientes não podem acessar dados globais da oficina" });
+  };
+
+  apiRouter.get("/health/details", requireAuth, requireAdmin, async (req, res) => {
+    res.json(await buildHealthDetails());
+  });
+
+  apiRouter.get("/clients", requireAuth, requireWorkshopOperator, async (req, res) => {
     const { data: clients, error } = await supabase.from("clients").select("*").order("name", { ascending: true });
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) return res.status(500).json({ error: formatApiError(error) });
     res.json(clients);
   });
 
-  apiRouter.post("/clients", protect, async (req, res) => {
+  apiRouter.post("/clients", requireAuth, requireWorkshopOperator, async (req, res) => {
     const user = (req.session as any).user;
-    console.log(`[API] Creating client by ${user.username}:`, req.body);
     
     if (user.permissions === 'technician') {
       return res.status(403).json({ error: "Técnicos não podem cadastrar clientes" });
@@ -403,38 +446,37 @@ apiRouter.use(ensureAdmin);
     const { data, error } = await supabase.from("clients").insert({ name, email, phone, document, image_url }).select().single();
     
     if (error) {
-      console.error(`[API] Error creating client:`, error);
-      return res.status(500).json({ error: error.message });
+      console.error(`[API] Error creating client:`, error.message);
+      return res.status(500).json({ error: formatApiError(error) });
     }
     
-    console.log(`[API] Client created successfully:`, data);
     res.status(201).json(data);
   });
 
-  apiRouter.put("/clients/:id", protect, async (req, res) => {
+  apiRouter.put("/clients/:id", requireAuth, requireWorkshopOperator, async (req, res) => {
     const { name, email, phone, document, image_url } = req.body;
     const { error } = await supabase.from("clients").update({ name, email, phone, document, image_url }).eq("id", req.params.id);
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) return res.status(500).json({ error: formatApiError(error) });
     res.json({ success: true });
   });
 
-  apiRouter.delete("/clients/:id", protect, async (req, res) => {
+  apiRouter.delete("/clients/:id", requireAuth, requireWorkshopOperator, async (req, res) => {
     const user = (req.session as any).user;
     if (user.permissions === 'technician') {
       return res.status(403).json({ error: "Técnicos não podem excluir clientes" });
     }
     const { error } = await supabase.from("clients").delete().eq("id", req.params.id);
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) return res.status(500).json({ error: formatApiError(error) });
     res.json({ success: true });
   });
 
-  apiRouter.get("/clients/:id/vehicles", protect, async (req, res) => {
+  apiRouter.get("/clients/:id/vehicles", requireAuth, requireWorkshopOperator, async (req, res) => {
     const { data: vehicles, error } = await supabase.from("vehicles").select("*").eq("client_id", req.params.id);
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) return res.status(500).json({ error: formatApiError(error) });
     res.json(vehicles);
   });
 
-  apiRouter.get("/clients/:id/orders", protect, async (req, res) => {
+  apiRouter.get("/clients/:id/orders", requireAuth, requireWorkshopOperator, async (req, res) => {
     const { data: orders, error } = await supabase
       .from("service_orders")
       .select(`
@@ -444,7 +486,7 @@ apiRouter.use(ensureAdmin);
       .eq("vehicles.client_id", req.params.id)
       .order("created_at", { ascending: false });
     
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) return res.status(500).json({ error: formatApiError(error) });
     
     // Flatten the result to match expected format
     const flattenedOrders = orders.map(o => ({
@@ -456,7 +498,7 @@ apiRouter.use(ensureAdmin);
     res.json(flattenedOrders);
   });
 
-  apiRouter.get("/vehicles", protect, async (req, res) => {
+  apiRouter.get("/vehicles", requireAuth, requireStaff, async (req, res) => {
     const { data: vehicles, error } = await supabase
       .from("vehicles")
       .select(`
@@ -465,7 +507,7 @@ apiRouter.use(ensureAdmin);
       `)
       .order("plate", { ascending: true });
     
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) return res.status(500).json({ error: formatApiError(error) });
     
     const flattenedVehicles = vehicles.map(v => ({
       ...v,
@@ -475,9 +517,8 @@ apiRouter.use(ensureAdmin);
     res.json(flattenedVehicles);
   });
 
-  apiRouter.post("/vehicles", protect, async (req, res) => {
+  apiRouter.post("/vehicles", requireAuth, requireWorkshopOperator, async (req, res) => {
     const user = (req.session as any).user;
-    console.log(`[API] Creating vehicle by ${user.username}:`, req.body);
     
     if (user.permissions === 'technician') {
       return res.status(403).json({ error: "Técnicos não podem cadastrar veículos" });
@@ -490,48 +531,47 @@ apiRouter.use(ensureAdmin);
       .single();
     
     if (error) {
-      console.error(`[API] Error creating vehicle:`, error);
+      console.error(`[API] Error creating vehicle:`, error.message);
       if (error.code === '23505') { // Unique constraint violation in Postgres
         res.status(400).json({ error: "Placa já cadastrada" });
       } else {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: formatApiError(error) });
       }
       return;
     }
     
-    console.log(`[API] Vehicle created successfully:`, data);
     res.status(201).json(data);
   });
 
-  apiRouter.put("/vehicles/:id", protect, async (req, res) => {
+  apiRouter.put("/vehicles/:id", requireAuth, requireWorkshopOperator, async (req, res) => {
     const { client_id, make, model, year, plate, color, vin, engine, fuel, hp, image_url } = req.body;
     const { error } = await supabase
       .from("vehicles")
       .update({ client_id, make, model, year, plate, color, vin, engine, fuel, hp, image_url })
       .eq("id", req.params.id);
     
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) return res.status(500).json({ error: formatApiError(error) });
     res.json({ success: true });
   });
 
-  apiRouter.delete("/vehicles/:id", protect, async (req, res) => {
+  apiRouter.delete("/vehicles/:id", requireAuth, requireWorkshopOperator, async (req, res) => {
     const user = (req.session as any).user;
     if (user.permissions === 'technician') {
       return res.status(403).json({ error: "Técnicos não podem excluir veículos" });
     }
     const { error } = await supabase.from("vehicles").delete().eq("id", req.params.id);
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) return res.status(500).json({ error: formatApiError(error) });
     res.json({ success: true });
   });
 
   // Staff Routes
-  apiRouter.get("/staff", protect, async (req, res) => {
+  apiRouter.get("/staff", requireAuth, requireAdmin, async (req, res) => {
     const { data: staff, error } = await supabase
       .from("staff_members")
       .select("id, name, role, department, phone, email, username, permissions, active, created_at")
       .order("name", { ascending: true });
     
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) return res.status(500).json({ error: formatApiError(error) });
     
     const formattedStaff = staff.map((member: any) => ({
       ...member,
@@ -541,7 +581,7 @@ apiRouter.use(ensureAdmin);
     res.json(formattedStaff);
   });
 
-  apiRouter.post("/staff", protect, adminOnly, async (req, res) => {
+  apiRouter.post("/staff", requireAuth, requireAdmin, async (req, res) => {
     try {
       const user = (req.session as any).user;
       const { name, roles, phone, email, username, password, permissions } = req.body;
@@ -551,7 +591,11 @@ apiRouter.use(ensureAdmin);
         return res.status(403).json({ error: "Apenas o administrador chefe pode atribuir níveis administrativos" });
       }
 
-      const hashedPassword = await bcrypt.hash(password || "123456", 10);
+      if (!password) {
+        return res.status(400).json({ error: "Senha é obrigatória para criar integrante" });
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 10);
       const roleString = Array.isArray(roles) ? roles.join(',') : 'other';
       
       const insertData: any = { 
@@ -574,18 +618,18 @@ apiRouter.use(ensureAdmin);
         if (error.code === '23505') {
           res.status(400).json({ error: "Usuário já existe" });
         } else {
-          res.status(500).json({ error: error.message });
+          res.status(500).json({ error: formatApiError(error) });
         }
         return;
       }
       res.status(201).json(data);
     } catch (err: any) {
-      console.error("Error creating staff member:", err);
-      res.status(500).json({ error: `Falha ao conectar ao Supabase: ${err.message || "erro desconhecido"}` });
+      console.error("Error creating staff member:", err.message);
+      res.status(500).json({ error: formatApiError(err, "Falha ao salvar integrante") });
     }
   });
 
-  apiRouter.put("/staff/:id", protect, adminOnly, async (req, res) => {
+  apiRouter.put("/staff/:id", requireAuth, requireAdmin, async (req, res) => {
     try {
       const user = (req.session as any).user;
       const targetId = req.params.id;
@@ -615,15 +659,15 @@ apiRouter.use(ensureAdmin);
       }
 
       const { error } = await supabase.from("staff_members").update(updateData).eq("id", targetId);
-      if (error) return res.status(500).json({ error: error.message });
+      if (error) return res.status(500).json({ error: formatApiError(error) });
       res.json({ success: true });
     } catch (err: any) {
-      console.error("Error updating staff member:", err);
-      res.status(500).json({ error: `Falha ao conectar ao Supabase: ${err.message || "erro desconhecido"}` });
+      console.error("Error updating staff member:", err.message);
+      res.status(500).json({ error: formatApiError(err, "Falha ao salvar integrante") });
     }
   });
 
-  apiRouter.delete("/staff/:id", protect, adminOnly, async (req, res) => {
+  apiRouter.delete("/staff/:id", requireAuth, requireAdmin, async (req, res) => {
     const user = (req.session as any).user;
     const targetId = req.params.id;
 
@@ -636,28 +680,39 @@ apiRouter.use(ensureAdmin);
     }
 
     const { error } = await supabase.from("staff_members").delete().eq("id", targetId);
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) return res.status(500).json({ error: formatApiError(error) });
     res.json({ success: true });
   });
 
-  apiRouter.get("/staff-requests", protect, adminOnly, async (req, res) => {
+  apiRouter.get("/staff-requests", requireAuth, requireAdmin, async (req, res) => {
     const { data: requests, error } = await supabase
       .from("registration_requests")
       .select("*")
       .eq("status", "pending")
       .order("created_at", { ascending: false });
     
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) return res.status(500).json({ error: formatApiError(error) });
     res.json(requests);
   });
 
-  apiRouter.delete("/staff-requests/:id", protect, adminOnly, async (req, res) => {
+  apiRouter.delete("/staff-requests/:id", requireAuth, requireAdmin, async (req, res) => {
     const { error } = await supabase.from("registration_requests").delete().eq("id", req.params.id);
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) return res.status(500).json({ error: formatApiError(error) });
     res.json({ success: true });
   });
 
-  apiRouter.get("/orders", protect, async (req, res) => {
+  const technicianCanAccessOrder = async (user: any, orderId: number | string) => {
+    if (user.permissions !== 'technician') return true;
+    const { data } = await supabase
+      .from("order_technicians")
+      .select("order_id")
+      .eq("order_id", orderId)
+      .eq("technician_id", user.id)
+      .maybeSingle();
+    return !!data;
+  };
+
+  apiRouter.get("/orders", requireAuth, requireStaff, async (req, res) => {
     const user = (req.session as any).user;
     
     let query = supabase
@@ -690,7 +745,7 @@ apiRouter.use(ensureAdmin);
     }
 
     const { data: orders, error } = await query;
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) return res.status(500).json({ error: formatApiError(error) });
 
     const enrichedOrders = await Promise.all(orders.map(async (order: any) => {
       const { data: techs } = await supabase
@@ -710,7 +765,7 @@ apiRouter.use(ensureAdmin);
     res.json(enrichedOrders);
   });
 
-  apiRouter.get("/stats", protect, async (req, res) => {
+  apiRouter.get("/stats", requireAuth, requireStaff, async (req, res) => {
     const { start_date, end_date } = req.query;
     
     const { count: clientsCount } = await supabase.from("clients").select("*", { count: 'exact', head: true });
@@ -745,7 +800,7 @@ apiRouter.use(ensureAdmin);
       });
     }
     
-    res.json({
+    const statsPayload = {
       clients: clientsCount || 0,
       vehicles: vehiclesCount || 0,
       activeOrders: (pendingOrders || 0) + (inProgressOrders || 0),
@@ -756,10 +811,20 @@ apiRouter.use(ensureAdmin);
       partsRevenue,
       laborRevenue,
       notesCount: notesCount || 0
-    });
+    };
+
+    const user = (req.session as any).user;
+    if (user.permissions === 'technician') {
+      statsPayload.revenue = 0;
+      statsPayload.partsRevenue = 0;
+      statsPayload.laborRevenue = 0;
+      statsPayload.notesCount = 0;
+    }
+
+    res.json(statsPayload);
   });
 
-  apiRouter.post("/orders", protect, async (req, res) => {
+  apiRouter.post("/orders", requireAuth, requireWorkshopOperator, async (req, res) => {
     const user = (req.session as any).user;
     if (user.permissions === 'technician') {
       return res.status(403).json({ error: "Técnicos não podem criar ordens de serviço" });
@@ -827,12 +892,13 @@ apiRouter.use(ensureAdmin);
 
       res.status(201).json({ id: orderId, vehicle_id, total_amount });
     } catch (err: any) {
-      console.error(err);
-      res.status(500).json({ error: err.message || "Failed to create order" });
+      console.error("Error creating order:", err.message);
+      res.status(500).json({ error: formatApiError(err, "Falha ao criar ordem") });
     }
   });
 
-  apiRouter.get("/orders/:id", protect, async (req, res) => {
+  apiRouter.get("/orders/:id", requireAuth, requireStaff, async (req, res) => {
+    const user = (req.session as any).user;
     const { data: order, error: orderError } = await supabase
       .from("service_orders")
       .select("*")
@@ -840,6 +906,10 @@ apiRouter.use(ensureAdmin);
       .single();
     
     if (orderError) return res.status(404).json({ error: "Order not found" });
+
+    if (!(await technicianCanAccessOrder(user, req.params.id))) {
+      return res.status(403).json({ error: "Você só pode acessar ordens atribuídas a você" });
+    }
     
     const { data: items } = await supabase.from("order_items").select("*").eq("order_id", req.params.id);
     const { data: technicians } = await supabase.from("order_technicians").select("technician_id").eq("order_id", req.params.id);
@@ -853,7 +923,7 @@ apiRouter.use(ensureAdmin);
     });
   });
 
-  apiRouter.put("/orders/:id", protect, async (req, res) => {
+  apiRouter.put("/orders/:id", requireAuth, requireStaff, async (req, res) => {
     const user = (req.session as any).user;
     const { vehicle_id, technician_ids, description, items, notes, checklist, checkin_images, status, tests, entry_date, exit_date, is_priority } = req.body;
     const orderId = req.params.id;
@@ -936,21 +1006,25 @@ apiRouter.use(ensureAdmin);
 
       res.json({ success: true });
     } catch (err: any) {
-      console.error(err);
-      res.status(500).json({ error: err.message || "Failed to update order" });
+      console.error("Error updating order:", err.message);
+      res.status(500).json({ error: formatApiError(err, "Falha ao atualizar ordem") });
     }
   });
 
-  apiRouter.patch("/orders/:id/status", protect, async (req, res) => {
+  apiRouter.patch("/orders/:id/status", requireAuth, requireStaff, async (req, res) => {
     const user = (req.session as any).user;
     const { status, create_note } = req.body;
     const orderId = req.params.id;
     
     try {
+      if (!(await technicianCanAccessOrder(user, orderId))) {
+        return res.status(403).json({ error: "Você só pode alterar ordens atribuídas a você" });
+      }
+
       const { data: currentOrder } = await supabase.from("service_orders").select("status").eq("id", orderId).single();
       
       const { error } = await supabase.from("service_orders").update({ status }).eq("id", orderId);
-      if (error) return res.status(500).json({ error: error.message });
+      if (error) return res.status(500).json({ error: formatApiError(error) });
       
       // If status changed to completed, generate a note if requested
       if (status === 'completed' && currentOrder?.status !== 'completed' && create_note) {
@@ -962,35 +1036,45 @@ apiRouter.use(ensureAdmin);
       
       res.json({ success: true });
     } catch (err: any) {
-      res.status(500).json({ error: err.message });
+      res.status(500).json({ error: formatApiError(err) });
     }
   });
 
-  apiRouter.delete("/orders/:id", protect, async (req, res) => {
+  apiRouter.delete("/orders/:id", requireAuth, requireWorkshopOperator, async (req, res) => {
     const user = (req.session as any).user;
     if (user.permissions === 'technician') {
       return res.status(403).json({ error: "Técnicos não podem excluir ordens de serviço" });
     }
     const { error } = await supabase.from("service_orders").delete().eq("id", req.params.id);
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) return res.status(500).json({ error: formatApiError(error) });
     res.json({ success: true });
   });
 
   // Service Order Tests (Checklist)
-  apiRouter.get("/orders/:id/tests", protect, async (req, res) => {
+  apiRouter.get("/orders/:id/tests", requireAuth, requireStaff, async (req, res) => {
+    const user = (req.session as any).user;
+    if (!(await technicianCanAccessOrder(user, req.params.id))) {
+      return res.status(403).json({ error: "Você só pode acessar testes de ordens atribuídas a você" });
+    }
+
     const { data: tests, error } = await supabase
       .from("service_order_tests")
       .select("*")
       .eq("order_id", req.params.id)
       .order("created_at", { ascending: true });
     
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) return res.status(500).json({ error: formatApiError(error) });
     res.json(tests);
   });
 
-  apiRouter.post("/orders/:id/tests", protect, async (req, res) => {
+  apiRouter.post("/orders/:id/tests", requireAuth, requireStaff, async (req, res) => {
+    const user = (req.session as any).user;
     const { component_name, result, notes } = req.body;
     const orderId = req.params.id;
+
+    if (!(await technicianCanAccessOrder(user, orderId))) {
+      return res.status(403).json({ error: "Você só pode alterar testes de ordens atribuídas a você" });
+    }
     
     const { data: existing } = await supabase
       .from("service_order_tests")
@@ -1001,23 +1085,35 @@ apiRouter.use(ensureAdmin);
     
     if (existing) {
       const { data, error } = await supabase.from("service_order_tests").update({ result, notes }).eq("id", existing.id).select().single();
-      if (error) return res.status(500).json({ error: error.message });
+      if (error) return res.status(500).json({ error: formatApiError(error) });
       res.json(data);
     } else {
       const { data, error } = await supabase.from("service_order_tests").insert({ order_id: orderId, component_name, result, notes }).select().single();
-      if (error) return res.status(500).json({ error: error.message });
+      if (error) return res.status(500).json({ error: formatApiError(error) });
       res.status(201).json(data);
     }
   });
 
-  apiRouter.delete("/orders/tests/:testId", protect, async (req, res) => {
+  apiRouter.delete("/orders/tests/:testId", requireAuth, requireStaff, async (req, res) => {
+    const user = (req.session as any).user;
+    const { data: existingTest, error: fetchError } = await supabase
+      .from("service_order_tests")
+      .select("order_id")
+      .eq("id", req.params.testId)
+      .single();
+
+    if (fetchError || !existingTest) return res.status(404).json({ error: "Teste não encontrado" });
+    if (!(await technicianCanAccessOrder(user, existingTest.order_id))) {
+      return res.status(403).json({ error: "Você só pode excluir testes de ordens atribuídas a você" });
+    }
+
     const { error } = await supabase.from("service_order_tests").delete().eq("id", req.params.testId);
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) return res.status(500).json({ error: formatApiError(error) });
     res.json({ success: true });
   });
 
   // Notification Routes
-  apiRouter.get("/notifications/public-key", protect, (req, res) => {
+  apiRouter.get("/notifications/public-key", requireAuth, (req, res) => {
     if (!webPushPublicKey) {
       return res.status(503).json({ error: "WEB_PUSH_PUBLIC_KEY ausente no Railway" });
     }
@@ -1025,7 +1121,7 @@ apiRouter.use(ensureAdmin);
     res.json({ publicKey: webPushPublicKey });
   });
 
-  apiRouter.post("/notifications/subscription", protect, async (req, res) => {
+  apiRouter.post("/notifications/subscription", requireAuth, async (req, res) => {
     const user = (req.session as any).user;
     const subscription = req.body.subscription || req.body;
     const endpoint = subscription?.endpoint;
@@ -1053,11 +1149,11 @@ apiRouter.use(ensureAdmin);
       
       if (error) {
         console.error("Error saving push subscription:", error);
-        return res.status(500).json({ error: error.message });
+        return res.status(500).json({ error: formatApiError(error) });
       }
       res.json({ success: true });
     } catch (err: any) {
-      res.status(500).json({ error: err.message });
+      res.status(500).json({ error: formatApiError(err) });
     }
   });
 
@@ -1123,7 +1219,7 @@ apiRouter.use(ensureAdmin);
   // This would be integrated into the PUT /orders/:id route
 
   // Notes Routes
-  apiRouter.get("/notes", protect, async (req, res) => {
+  apiRouter.get("/notes", requireAuth, requireFinanceAccess, async (req, res) => {
     const { data: notes, error } = await supabase
       .from("notes")
       .select(`
@@ -1133,7 +1229,7 @@ apiRouter.use(ensureAdmin);
       `)
       .order("created_at", { ascending: false });
     
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) return res.status(500).json({ error: formatApiError(error) });
     
     const enrichedNotes = notes.map((note: any) => ({
       ...note,
@@ -1145,7 +1241,7 @@ apiRouter.use(ensureAdmin);
     res.json(enrichedNotes);
   });
 
-  apiRouter.get("/notes/:id", protect, async (req, res) => {
+  apiRouter.get("/notes/:id", requireAuth, requireFinanceAccess, async (req, res) => {
     const { data: note, error } = await supabase
       .from("notes")
       .select(`
@@ -1169,7 +1265,7 @@ apiRouter.use(ensureAdmin);
     });
   });
 
-  apiRouter.post("/notes", protect, async (req, res) => {
+  apiRouter.post("/notes", requireAuth, requireFinanceAccess, async (req, res) => {
     const { client_id, vehicle_id, manual_client_name, manual_vehicle_model, manual_plate, document_type, total_amount, items, payment_status, paid_amount } = req.body;
     
     try {
@@ -1208,11 +1304,11 @@ apiRouter.use(ensureAdmin);
       
       res.json(note);
     } catch (err: any) {
-      res.status(500).json({ error: err.message });
+      res.status(500).json({ error: isProduction ? "Erro interno no servidor" : err.message });
     }
   });
 
-  apiRouter.put("/notes/:id", protect, async (req, res) => {
+  apiRouter.put("/notes/:id", requireAuth, requireFinanceAccess, async (req, res) => {
     const { client_id, vehicle_id, manual_client_name, manual_vehicle_model, manual_plate, document_type, total_amount, items, payment_status, paid_amount } = req.body;
     const noteId = req.params.id;
     
@@ -1254,38 +1350,60 @@ apiRouter.use(ensureAdmin);
       
       res.json({ success: true });
     } catch (err: any) {
-      res.status(500).json({ error: err.message });
+      res.status(500).json({ error: isProduction ? "Erro interno no servidor" : err.message });
     }
   });
 
-  apiRouter.delete("/notes/:id", protect, async (req, res) => {
+  apiRouter.delete("/notes/:id", requireAuth, requireFinanceAccess, async (req, res) => {
     const { error } = await supabase.from("notes").delete().eq("id", req.params.id);
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) return res.status(500).json({ error: formatApiError(error) });
     res.json({ success: true });
   });
 
   // Products / Inventory Routes
-  apiRouter.get("/products", protect, async (req, res) => {
+  apiRouter.get("/products", requireAuth, async (req, res) => {
     const { data, error } = await supabase.from("products").select("*").order("name");
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) return res.status(500).json({ error: formatApiError(error) });
     res.json(data);
   });
 
-  apiRouter.post("/products", protect, async (req, res) => {
-    const { data, error } = await supabase.from("products").insert(req.body).select().single();
-    if (error) return res.status(500).json({ error: error.message });
+  apiRouter.post("/products", requireAuth, requireWorkshopOperator, async (req, res) => {
+    const { name, description, price, stock_quantity, min_stock, category, image_url, is_promotion, promotion_price } = req.body;
+    const { data, error } = await supabase.from("products").insert({
+      name,
+      description,
+      price,
+      stock_quantity,
+      min_stock,
+      category,
+      image_url,
+      is_promotion,
+      promotion_price
+    }).select().single();
+    if (error) return res.status(500).json({ error: formatApiError(error) });
     res.json(data);
   });
 
-  apiRouter.put("/products/:id", protect, async (req, res) => {
-    const { error } = await supabase.from("products").update(req.body).eq("id", req.params.id);
-    if (error) return res.status(500).json({ error: error.message });
+  apiRouter.put("/products/:id", requireAuth, requireWorkshopOperator, async (req, res) => {
+    const { name, description, price, stock_quantity, min_stock, category, image_url, is_promotion, promotion_price } = req.body;
+    const { error } = await supabase.from("products").update({
+      name,
+      description,
+      price,
+      stock_quantity,
+      min_stock,
+      category,
+      image_url,
+      is_promotion,
+      promotion_price
+    }).eq("id", req.params.id);
+    if (error) return res.status(500).json({ error: formatApiError(error) });
     res.json({ success: true });
   });
 
-  apiRouter.delete("/products/:id", protect, async (req, res) => {
+  apiRouter.delete("/products/:id", requireAuth, requireWorkshopOperator, async (req, res) => {
     const { error } = await supabase.from("products").delete().eq("id", req.params.id);
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) return res.status(500).json({ error: formatApiError(error) });
     res.json({ success: true });
   });
 

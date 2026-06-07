@@ -1,57 +1,41 @@
 # Santos Automotive
 
-Sistema web para gestao de oficina automotiva com React, Vite, Express, Supabase e Firebase.
+Sistema interno para gestao de oficina automotiva.
+
+## Stack
+
+- Frontend: React, Vite, TypeScript.
+- Backend: Express/Node, servido pelo mesmo processo.
+- Banco/API: Supabase.
+- Deploy: Railway.
+- Push: Web Push com VAPID, sem Firebase.
 
 ## Rodar Localmente
 
-**Pre-requisito:** Node.js
-
 1. Instale as dependencias:
-   `npm install`
-2. Crie o arquivo `.env` usando `.env.example` como base.
-3. Rode o app:
-   `npm run dev`
+
+```bash
+npm install
+```
+
+2. Crie `.env` a partir de `.env.example`.
+
+3. Rode:
+
+```bash
+npm run dev
+```
 
 O servidor local sobe em `http://localhost:3000`.
 
-## Deploy no Railway
+## Scripts
 
-O projeto esta preparado para Railway como um unico servico Node:
+- `npm run dev`: inicia Express com TSX.
+- `npm run build`: gera o frontend em `dist`.
+- `npm start`: inicia o servidor Express.
+- `npm run lint`: executa `tsc --noEmit`.
+- `npm run typecheck`: executa `tsc --noEmit`.
 
-- `npm run build` gera o frontend em `dist`.
-- `npm start` sobe o Express.
-- `railway.json` configura build, start command e healthcheck.
-- O servidor usa `process.env.PORT`, que e definido automaticamente pelo Railway.
+## Deploy
 
-No painel do Railway, configure as variaveis:
-
-- `SUPABASE_URL`
-- `SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `SESSION_SECRET`
-- `VITE_FIREBASE_API_KEY`
-- `VITE_FIREBASE_AUTH_DOMAIN`
-- `VITE_FIREBASE_PROJECT_ID`
-- `VITE_FIREBASE_STORAGE_BUCKET`
-- `VITE_FIREBASE_MESSAGING_SENDER_ID`
-- `VITE_FIREBASE_APP_ID`
-- `VITE_FIREBASE_VAPID_KEY`
-- `FIREBASE_SERVICE_ACCOUNT`
-
-Depois conecte o repositorio ao Railway e faca o deploy. O healthcheck configurado e `/api/health`.
-
-## Novo Supabase
-
-Para usar uma organizacao/projeto novo no Supabase:
-
-1. Crie uma nova organizacao no dashboard do Supabase.
-2. Dentro dela, crie um novo projeto.
-3. Abra o SQL Editor do projeto novo.
-4. Execute o conteudo de `supabase_schema.sql`.
-5. Em Project Settings > API, copie:
-   - Project URL para `SUPABASE_URL`
-   - anon public key para `SUPABASE_ANON_KEY`
-   - service_role secret key para `SUPABASE_SERVICE_ROLE_KEY`
-6. Cole essas variaveis no servico do Railway.
-
-Depois do deploy, acesse `/api/health` no dominio do Railway para confirmar se o backend conectou ao Supabase.
+Veja [DEPLOYMENT.md](./DEPLOYMENT.md).
