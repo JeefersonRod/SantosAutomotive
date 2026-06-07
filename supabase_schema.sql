@@ -35,7 +35,6 @@ CREATE TABLE IF NOT EXISTS staff_members (
   username TEXT UNIQUE,
   password TEXT,
   permissions TEXT DEFAULT 'technician',
-  firebase_uid TEXT,
   active INTEGER DEFAULT 1,
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
@@ -86,12 +85,15 @@ CREATE TABLE IF NOT EXISTS service_order_tests (
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS user_fcm_tokens (
+CREATE TABLE IF NOT EXISTS push_subscriptions (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES staff_members(id) ON DELETE CASCADE,
-  token TEXT NOT NULL,
+  endpoint TEXT NOT NULL UNIQUE,
+  p256dh TEXT NOT NULL,
+  auth TEXT NOT NULL,
+  expiration_time TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE (user_id, token)
+  updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS notes (
@@ -138,6 +140,7 @@ CREATE INDEX IF NOT EXISTS idx_service_orders_vehicle_id ON service_orders(vehic
 CREATE INDEX IF NOT EXISTS idx_service_orders_status ON service_orders(status);
 CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);
 CREATE INDEX IF NOT EXISTS idx_order_technicians_technician_id ON order_technicians(technician_id);
+CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user_id ON push_subscriptions(user_id);
 CREATE INDEX IF NOT EXISTS idx_notes_order_id ON notes(order_id);
 CREATE INDEX IF NOT EXISTS idx_notes_client_id ON notes(client_id);
 CREATE INDEX IF NOT EXISTS idx_note_items_note_id ON note_items(note_id);

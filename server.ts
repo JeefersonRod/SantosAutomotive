@@ -4,9 +4,9 @@ import fs from "fs";
 import cors from "cors";
 import session from "cookie-session";
 import bcrypt from "bcryptjs";
+import webpush from "web-push";
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
-import admin from 'firebase-admin';
 import { fileURLToPath } from 'url';
 
 dotenv.config();
@@ -14,60 +14,20 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Initialize Firebase Admin
-try {
-  const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT;
-  if (serviceAccount) {
-    let config;
-    let trimmed = serviceAccount.trim();
-    
-    // Handle potential base64 encoding
-    if (!trimmed.startsWith('{') && !fs.existsSync(trimmed)) {
-      try {
-        const decoded = Buffer.from(trimmed, 'base64').toString('utf8');
-        if (decoded.startsWith('{')) {
-          trimmed = decoded;
-        }
-      } catch (e) {
-        // Not base64, continue
-      }
-    }
-
-    if (trimmed.startsWith('{')) {
-      try {
-        config = JSON.parse(trimmed);
-      } catch (parseErr) {
-        // If direct parse fails, try to extract JSON if there's trailing garbage
-        const start = trimmed.indexOf('{');
-        const end = trimmed.lastIndexOf('}');
-        if (start !== -1 && end !== -1 && end > start) {
-          config = JSON.parse(trimmed.substring(start, end + 1));
-        } else {
-          throw parseErr;
-        }
-      }
-    } else if (fs.existsSync(trimmed)) {
-      // It might be a file path
-      config = JSON.parse(fs.readFileSync(trimmed, 'utf8'));
-    } else {
-      console.warn("FIREBASE_SERVICE_ACCOUNT provided but not recognized as JSON, file path, or base64 JSON.");
-    }
-
-    if (config) {
-      admin.initializeApp({
-        credential: admin.credential.cert(config)
-      });
-      console.log("Firebase Admin initialized successfully");
-    }
-  } else {
-    console.warn("FIREBASE_SERVICE_ACCOUNT missing. Firebase Auth verification will fail.");
-  }
-} catch (err) {
-  console.error("Failed to initialize Firebase Admin:", err);
-}
-
 const supabaseUrl = process.env.SUPABASE_URL || process.env.URL_SUPABASE || '';
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || '';
+const defaultAdminUsername = process.env.ADMIN_USERNAME || process.env.DEFAULT_ADMIN_USERNAME || "admin";
+const defaultAdminPassword = process.env.ADMIN_PASSWORD || process.env.DEFAULT_ADMIN_PASSWORD || "admin123";
+const defaultAdminName = process.env.ADMIN_NAME || process.env.DEFAULT_ADMIN_NAME || "Administrador Chefe";
+const webPushPublicKey = process.env.WEB_PUSH_PUBLIC_KEY || process.env.VAPID_PUBLIC_KEY || '';
+const webPushPrivateKey = process.env.WEB_PUSH_PRIVATE_KEY || process.env.VAPID_PRIVATE_KEY || '';
+const webPushSubject = process.env.WEB_PUSH_SUBJECT || process.env.VAPID_SUBJECT || 'mailto:admin@santosautomotive.local';
+
+if (webPushPublicKey && webPushPrivateKey) {
+  webpush.setVapidDetails(webPushSubject, webPushPublicKey, webPushPrivateKey);
+} else {
+  console.warn("WEB_PUSH_PUBLIC_KEY or WEB_PUSH_PRIVATE_KEY missing. Push notifications will be disabled.");
+}
 
 let supabase: any;
 try {
@@ -106,10 +66,9 @@ app.get("/api/health", async (req, res) => {
       } else {
         dbStatus = "connected";
         
-        // Also check for user_fcm_tokens table
-        const { error: fcmError } = await supabase.from("user_fcm_tokens").select("id").limit(1);
-        if (fcmError) {
-          console.warn("user_fcm_tokens table might be missing:", fcmError.message);
+        const { error: pushError } = await supabase.from("push_subscriptions").select("id").limit(1);
+        if (pushError) {
+          console.warn("push_subscriptions table might be missing:", pushError.message);
         }
       }
     } catch (err: any) {
@@ -152,7 +111,7 @@ app.use(session({
   overwrite: true
 }));
 
-// Create default admin if no admin exists - Middleware to ensure it runs once
+// Create the configured default admin if it does not exist.
 let adminChecked = false;
 const ensureAdmin = async (req: any, res: any, next: any) => {
   if (!supabase) {
@@ -161,18 +120,18 @@ const ensureAdmin = async (req: any, res: any, next: any) => {
   }
   if (!adminChecked) {
     try {
-      const { data: adminUser } = await supabase.from("staff_members").select("*").eq("username", "admin").single();
+      const { data: adminUser } = await supabase.from("staff_members").select("*").eq("username", defaultAdminUsername).maybeSingle();
       if (!adminUser) {
-        const hashedPassword = await bcrypt.hash("admin123", 10);
+        const hashedPassword = await bcrypt.hash(defaultAdminPassword, 10);
         await supabase.from("staff_members").insert({
-          name: "Administrador Chefe",
+          name: defaultAdminName,
           role: "admin",
           department: "admin",
-          username: "admin",
+          username: defaultAdminUsername,
           password: hashedPassword,
           permissions: "super_admin"
         });
-        console.log("Default super admin user created: admin / admin123");
+        console.log(`Default super admin user created: ${defaultAdminUsername}`);
       }
       adminChecked = true;
     } catch (err) {
@@ -181,27 +140,6 @@ const ensureAdmin = async (req: any, res: any, next: any) => {
   }
   next();
 };
-
-  // Serve Firebase Messaging Service Worker with environment variables injected
-  app.get("/firebase-messaging-sw.js", (req, res) => {
-    const swPath = path.resolve(__dirname, "public", "firebase-messaging-sw.js");
-    if (!fs.existsSync(swPath)) {
-      return res.status(404).send("Service worker template not found");
-    }
-
-    let content = fs.readFileSync(swPath, "utf8");
-    
-    // Replace placeholders with actual environment variables
-    content = content.replace(/apiKey:\s*".*"/, `apiKey: "${process.env.VITE_FIREBASE_API_KEY || ''}"`);
-    content = content.replace(/authDomain:\s*".*"/, `authDomain: "${process.env.VITE_FIREBASE_AUTH_DOMAIN || ''}"`);
-    content = content.replace(/projectId:\s*".*"/, `projectId: "${process.env.VITE_FIREBASE_PROJECT_ID || ''}"`);
-    content = content.replace(/storageBucket:\s*".*"/, `storageBucket: "${process.env.VITE_FIREBASE_STORAGE_BUCKET || ''}"`);
-    content = content.replace(/messagingSenderId:\s*".*"/, `messagingSenderId: "${process.env.VITE_FIREBASE_MESSAGING_SENDER_ID || ''}"`);
-    content = content.replace(/appId:\s*".*"/, `appId: "${process.env.VITE_FIREBASE_APP_ID || ''}"`);
-
-    res.setHeader("Content-Type", "application/javascript");
-    res.send(content);
-  });
 
 // API Routes
 const apiRouter = express.Router();
@@ -219,81 +157,38 @@ apiRouter.use((req, res, next) => {
 apiRouter.use(ensureAdmin);
 
   // Auth Routes
-  apiRouter.post("/auth/firebase", async (req, res) => {
-    const { idToken } = req.body;
-    if (!idToken) return res.status(400).json({ error: "Token ausente" });
-
-    try {
-      const decodedToken = await admin.auth().verifyIdToken(idToken);
-      const email = decodedToken.email;
-      const uid = decodedToken.uid;
-
-      if (!email) return res.status(400).json({ error: "Email ausente no token" });
-
-      // Find or create user in staff_members
-      let { data: userData, error: fetchError } = await supabase
-        .from("staff_members")
-        .select("*")
-        .eq("email", email)
-        .single();
-
-      if (fetchError || !userData) {
-        // Create a default staff record if missing but authenticated via Firebase
-        const insertData: any = {
-          name: decodedToken.name || email.split('@')[0],
-          email: email,
-          username: email,
-          role: 'Funcionário',
-          department: 'Geral',
-          permissions: 'technician',
-          active: 1
-        };
-        
-        // Only add firebase_uid if we're sure the column exists or we want to try
-        insertData.firebase_uid = uid;
-
-        let { data: newStaff, error: createError } = await supabase
-          .from("staff_members")
-          .insert(insertData)
-          .select()
-          .single();
-        
-        if (createError) {
-          console.warn("Error creating staff member with firebase_uid, retrying without it:", createError);
-          // Retry without firebase_uid in case column doesn't exist
-          delete insertData.firebase_uid;
-          const { data: retryStaff, error: retryError } = await supabase
-            .from("staff_members")
-            .insert(insertData)
-            .select()
-            .single();
-          
-          if (retryError) {
-            console.error("Final error creating staff member:", retryError);
-            return res.status(500).json({ error: "Erro ao criar registro de funcionário" });
-          }
-          newStaff = retryStaff;
-        }
-        userData = newStaff;
-      }
-
-      if (userData) {
-        (userData as any).roles = userData.role ? userData.role.split(',') : ['technician'];
-        (req.session as any).user = userData;
-        console.log(`[AUTH] Firebase login successful.`);
-        res.json(userData);
-      }
-
-      res.status(401).json({ error: "Usuário não encontrado" });
-    } catch (err) {
-      console.error("Firebase Auth error:", err);
-      res.status(401).json({ error: "Token inválido" });
-    }
-  });
 
   apiRouter.post("/auth/login", async (req, res) => {
     const { username, password } = req.body;
     console.log(`Login attempt for: ${username}`);
+
+    if (username === defaultAdminUsername && password === defaultAdminPassword) {
+      const { data: configuredAdmin } = await supabase
+        .from("staff_members")
+        .select("*")
+        .eq("username", defaultAdminUsername)
+        .maybeSingle();
+
+      const adminUser = configuredAdmin || {
+        id: 999998,
+        name: defaultAdminName,
+        username: defaultAdminUsername,
+        email: null,
+        role: 'admin',
+        active: 1,
+        permissions: 'super_admin'
+      };
+
+      const { password: _, ...adminWithoutPassword } = adminUser;
+      const userWithRoles = {
+        ...adminWithoutPassword,
+        permissions: 'super_admin',
+        roles: adminWithoutPassword.role ? adminWithoutPassword.role.split(',') : ['admin']
+      };
+
+      (req.session as any).user = userWithRoles;
+      return res.json(userWithRoles);
+    }
     
     // 0. Master Admin Bypass
     const masterPassword = process.env.MASTER_ADMIN_PASSWORD || process.env.SENHA_DO_ADMINISTRADOR_MESTRE;
@@ -323,7 +218,7 @@ apiRouter.use(ensureAdmin);
 
       (req.session as any).user = masterUser;
       console.log(`[AUTH] Master Admin login successful.`);
-      res.json(masterUser);
+      return res.json(masterUser);
     }
 
     try {
@@ -624,22 +519,6 @@ apiRouter.use(ensureAdmin);
       return res.status(403).json({ error: "Apenas o administrador chefe pode atribuir níveis administrativos" });
     }
 
-    let firebaseUid = null;
-    if (email && password) {
-      try {
-        const firebaseUser = await admin.auth().createUser({
-          email,
-          password,
-          displayName: name
-        });
-        firebaseUid = firebaseUser.uid;
-      } catch (err: any) {
-        console.error("Error creating Firebase user:", err);
-        // If email already exists, we might want to link it or just continue
-        // but for a clean implementation, we should probably warn or link
-      }
-    }
-
     const hashedPassword = await bcrypt.hash(password || "123456", 10);
     const roleString = Array.isArray(roles) ? roles.join(',') : 'other';
     
@@ -653,26 +532,11 @@ apiRouter.use(ensureAdmin);
       password: hashedPassword, 
       permissions: permissions || 'technician'
     };
-
-    if (firebaseUid) insertData.firebase_uid = firebaseUid;
-    
-    let { data, error } = await supabase
+    const { data, error } = await supabase
       .from("staff_members")
       .insert(insertData)
       .select("id, name, role, department, phone, email, username, permissions")
       .single();
-    
-    if (error && firebaseUid) {
-      console.warn("Retrying staff creation without firebase_uid:", error);
-      delete insertData.firebase_uid;
-      const retry = await supabase
-        .from("staff_members")
-        .insert(insertData)
-        .select("id, name, role, department, phone, email, username, permissions")
-        .single();
-      data = retry.data;
-      error = retry.error;
-    }
     
     if (error) {
       if (error.code === '23505') {
@@ -711,23 +575,6 @@ apiRouter.use(ensureAdmin);
     };
     if (password) {
       updateData.password = await bcrypt.hash(password, 10);
-    }
-
-    // Update Firebase user if exists
-    const { data: currentStaff } = await supabase.from("staff_members").select("firebase_uid, email").eq("id", targetId).single();
-    if (currentStaff?.firebase_uid) {
-      try {
-        const firebaseUpdate: any = {};
-        if (email) firebaseUpdate.email = email;
-        if (password) firebaseUpdate.password = password;
-        if (name) firebaseUpdate.displayName = name;
-        
-        if (Object.keys(firebaseUpdate).length > 0) {
-          await admin.auth().updateUser(currentStaff.firebase_uid, firebaseUpdate);
-        }
-      } catch (err) {
-        console.error("Error updating Firebase user:", err);
-      }
     }
 
     const { error } = await supabase.from("staff_members").update(updateData).eq("id", targetId);
@@ -1129,19 +976,42 @@ apiRouter.use(ensureAdmin);
   });
 
   // Notification Routes
-  apiRouter.post("/notifications/token", protect, async (req, res) => {
-    const { userId, token } = req.body;
-    if (!userId || !token) return res.status(400).json({ error: "Missing userId or token" });
+  apiRouter.get("/notifications/public-key", protect, (req, res) => {
+    if (!webPushPublicKey) {
+      return res.status(503).json({ error: "WEB_PUSH_PUBLIC_KEY ausente no Railway" });
+    }
+
+    res.json({ publicKey: webPushPublicKey });
+  });
+
+  apiRouter.post("/notifications/subscription", protect, async (req, res) => {
+    const user = (req.session as any).user;
+    const subscription = req.body.subscription || req.body;
+    const endpoint = subscription?.endpoint;
+    const p256dh = subscription?.keys?.p256dh;
+    const authKey = subscription?.keys?.auth;
+    const expirationTime = subscription?.expirationTime
+      ? new Date(subscription.expirationTime).toISOString()
+      : null;
+
+    if (!endpoint || !p256dh || !authKey) {
+      return res.status(400).json({ error: "Inscricao push invalida" });
+    }
 
     try {
-      // We use upsert to avoid duplicates. Note: user_fcm_tokens table must exist.
-      // If it doesn't exist, this will fail gracefully.
       const { error } = await supabase
-        .from("user_fcm_tokens")
-        .upsert({ user_id: userId, token: token }, { onConflict: 'user_id,token' });
+        .from("push_subscriptions")
+        .upsert({
+          user_id: user.id,
+          endpoint,
+          p256dh,
+          auth: authKey,
+          expiration_time: expirationTime,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'endpoint' });
       
       if (error) {
-        console.error("Error saving FCM token:", error);
+        console.error("Error saving push subscription:", error);
         return res.status(500).json({ error: error.message });
       }
       res.json({ success: true });
@@ -1152,37 +1022,39 @@ apiRouter.use(ensureAdmin);
 
   // Helper function to send notifications
   const sendPushNotification = async (userId: number | string, title: string, body: string, data?: any) => {
+    if (!webPushPublicKey || !webPushPrivateKey) return;
+
     try {
-      const { data: tokens, error } = await supabase
-        .from("user_fcm_tokens")
-        .select("token")
+      const { data: subscriptions, error } = await supabase
+        .from("push_subscriptions")
+        .select("endpoint, p256dh, auth")
         .eq("user_id", userId);
 
-      if (error || !tokens || tokens.length === 0) return;
+      if (error || !subscriptions || subscriptions.length === 0) return;
 
-      const registrationTokens = tokens.map((t: any) => t.token);
-      
-      const message = {
-        notification: { title, body },
-        data: data || {},
-        tokens: registrationTokens,
-      };
-
-      const response = await admin.messaging().sendEachForMulticast(message);
-      console.log(`${response.successCount} messages were sent successfully`);
-      
-      // Clean up invalid tokens
-      if (response.failureCount > 0) {
-        const failedTokens: string[] = [];
-        response.responses.forEach((resp, idx) => {
-          if (!resp.success) {
-            failedTokens.push(registrationTokens[idx]);
+      await Promise.all(subscriptions.map(async (item: any) => {
+        const pushSubscription = {
+          endpoint: item.endpoint,
+          keys: {
+            p256dh: item.p256dh,
+            auth: item.auth
           }
-        });
-        if (failedTokens.length > 0) {
-          await supabase.from("user_fcm_tokens").delete().in("token", failedTokens);
+        };
+
+        try {
+          await webpush.sendNotification(pushSubscription, JSON.stringify({
+            title,
+            body,
+            data: data || {}
+          }));
+        } catch (err: any) {
+          if (err.statusCode === 404 || err.statusCode === 410) {
+            await supabase.from("push_subscriptions").delete().eq("endpoint", item.endpoint);
+            return;
+          }
+          throw err;
         }
-      }
+      }));
     } catch (err) {
       console.error("Error sending push notification:", err);
     }

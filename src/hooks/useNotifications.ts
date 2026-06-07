@@ -1,94 +1,77 @@
-import { useState, useEffect } from 'react';
-import { getToken, onMessage, isSupported, getMessaging, Messaging } from 'firebase/messaging';
-import { app } from '../lib/firebase';
+import { useEffect, useState } from 'react';
 
-export const useNotifications = (userId: string | undefined) => {
-  const [messaging, setMessaging] = useState<Messaging | null>(null);
+const urlBase64ToUint8Array = (base64String: string) => {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = `${base64String}${padding}`.replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; i += 1) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+
+  return outputArray;
+};
+
+export const useNotifications = (userId: string | number | undefined) => {
   const [token, setToken] = useState<string | null>(null);
   const [permission, setPermission] = useState<NotificationPermission>(
-    (typeof window !== 'undefined' && 'Notification' in window) ? Notification.permission : 'default'
+    typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'default'
   );
 
-  useEffect(() => {
-    const initMessaging = async () => {
-      if (!app || typeof window === 'undefined') return;
-      
-      try {
-        const supported = await isSupported();
-        if (supported) {
-          const m = getMessaging(app);
-          setMessaging(m);
-        }
-      } catch (err) {
-        console.warn('Firebase Messaging not supported:', err);
-      }
-    };
-
-    initMessaging();
-  }, []);
-
   const requestPermission = async () => {
-    if (!messaging || !('Notification' in window)) return;
-
-    try {
-      const status = await Notification.requestPermission();
-      setPermission(status);
-      
-      if (status === 'granted') {
-        const currentToken = await getToken(messaging, {
-          vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY
-        });
-        
-        if (currentToken) {
-          setToken(currentToken);
-          if (userId) {
-            await saveTokenToServer(userId, currentToken);
-          }
-        } else {
-          console.log('No registration token available. Request permission to generate one.');
-        }
-      }
-    } catch (err) {
-      console.error('An error occurred while retrieving token. ', err);
+    if (
+      typeof window === 'undefined' ||
+      !('Notification' in window) ||
+      !('serviceWorker' in navigator) ||
+      !('PushManager' in window)
+    ) {
+      return;
     }
-  };
 
-  const saveTokenToServer = async (uid: string, fcmToken: string) => {
+    const status = await Notification.requestPermission();
+    setPermission(status);
+    if (status !== 'granted') return;
+
     try {
-      await fetch('/api/notifications/token', {
+      const registration = await navigator.serviceWorker.ready;
+      const keyResponse = await fetch('/api/notifications/public-key', {
+        credentials: 'include'
+      });
+
+      if (!keyResponse.ok) {
+        console.warn('Web Push public key is not configured.');
+        return;
+      }
+
+      const { publicKey } = await keyResponse.json();
+      let subscription = await registration.pushManager.getSubscription();
+
+      if (!subscription) {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(publicKey)
+        });
+      }
+
+      setToken(subscription.endpoint);
+
+      await fetch('/api/notifications/subscription', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ userId: uid, token: fcmToken }),
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ subscription: subscription.toJSON() })
       });
     } catch (err) {
-      console.error('Error saving token to server:', err);
+      console.error('Error registering push subscription:', err);
     }
   };
 
   useEffect(() => {
-    if (userId && permission === 'granted' && messaging) {
+    if (userId && permission === 'granted') {
       requestPermission();
     }
-  }, [userId, permission, messaging]);
-
-  useEffect(() => {
-    if (!messaging) return;
-
-    const unsubscribe = onMessage(messaging, (payload) => {
-      console.log('Message received. ', payload);
-      // You can customize how to show the notification when the app is in foreground
-      if (payload.notification && 'Notification' in window) {
-        new Notification(payload.notification.title || 'Nova Notificação', {
-          body: payload.notification.body,
-          icon: '/logo.jpg'
-        });
-      }
-    });
-
-    return () => unsubscribe();
-  }, [messaging]);
+  }, [userId, permission]);
 
   return { token, permission, requestPermission };
 };

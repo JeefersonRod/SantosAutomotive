@@ -42,10 +42,14 @@ export default function Login() {
         transition={{ duration: 0.28 }}
         className="w-full max-w-md relative z-10"
       >
-        <div className="bg-[#111622]/95 border border-white/10 rounded-[2rem] p-6 sm:p-8 shadow-2xl shadow-black/40">
+        <div className="bg-[#111622]/95 border border-white/10 rounded-xl p-6 sm:p-8 shadow-2xl shadow-black/40">
           <div className="flex flex-col items-center text-center mb-8">
-            <div className="w-20 h-20 bg-surface-950 rounded-2xl border border-white/10 p-2 shadow-lg shadow-brand-primary/10 mb-4 overflow-hidden">
-              <img src="/logo.jpg" alt="Santos Automotive" className="w-full h-full object-contain" />
+            <div className="w-24 h-24 flex items-center justify-center mb-4 overflow-hidden">
+              <img
+                src="/logo.jpg"
+                alt="Santos Automotive"
+                className="w-full h-full object-cover object-center rounded-lg border border-white/10 shadow-lg shadow-brand-primary/10"
+              />
             </div>
             <h1 className="text-3xl font-display font-bold text-white tracking-tight notranslate" translate="no">Santos Automotive</h1>
           </div>
@@ -55,7 +59,7 @@ export default function Login() {
               <motion.div
                 initial={{ opacity: 0, x: -8 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="bg-red-500/10 border border-red-500/25 p-4 rounded-2xl flex items-center gap-3 text-red-300 text-sm font-medium"
+                className="bg-red-500/10 border border-red-500/25 p-4 rounded-lg flex items-center gap-3 text-red-300 text-sm font-medium"
               >
                 <AlertCircle className="w-5 h-5 flex-shrink-0" />
                 {error}
@@ -71,7 +75,7 @@ export default function Login() {
                   type="text"
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
-                  className="w-full h-14 pl-12 pr-4 bg-[#1a1f2b] border border-white/10 rounded-2xl text-white outline-none focus:ring-2 focus:ring-brand-primary/25 focus:border-brand-primary transition-all font-medium placeholder:text-surface-500"
+                  className="w-full h-14 pl-12 pr-4 bg-[#1a1f2b] border border-white/10 rounded-lg text-white outline-none focus:ring-2 focus:ring-brand-primary/25 focus:border-brand-primary transition-all font-medium placeholder:text-surface-500"
                   placeholder="e-mail ou usuário"
                 />
               </div>
@@ -86,7 +90,7 @@ export default function Login() {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full h-14 pl-12 pr-4 bg-[#1a1f2b] border border-white/10 rounded-2xl text-white outline-none focus:ring-2 focus:ring-brand-primary/25 focus:border-brand-primary transition-all font-medium placeholder:text-surface-500"
+                  className="w-full h-14 pl-12 pr-4 bg-[#1a1f2b] border border-white/10 rounded-lg text-white outline-none focus:ring-2 focus:ring-brand-primary/25 focus:border-brand-primary transition-all font-medium placeholder:text-surface-500"
                   placeholder="digite sua senha"
                 />
               </div>
@@ -95,7 +99,7 @@ export default function Login() {
             <button
               disabled={loading}
               type="submit"
-              className="w-full h-14 bg-brand-primary text-white rounded-2xl font-bold text-base shadow-xl shadow-brand-primary/20 hover:bg-brand-primary/90 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full h-14 bg-brand-primary text-white rounded-lg font-bold text-base shadow-xl shadow-brand-primary/20 hover:bg-brand-primary/90 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {loading ? (
                 <Loader2 className="w-6 h-6 animate-spin" />

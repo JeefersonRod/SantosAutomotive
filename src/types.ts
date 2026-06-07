@@ -41,7 +41,6 @@ export interface StaffMember {
   username?: string;
   password?: string;
   permissions?: 'super_admin' | 'admin' | 'technician' | 'attendant' | 'client';
-  firebase_uid?: string;
   active: boolean;
 }
 
