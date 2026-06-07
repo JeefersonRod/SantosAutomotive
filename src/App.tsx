@@ -16,13 +16,13 @@ import StaffTab from './components/StaffTab';
 import UserProfileModal from './components/UserProfileModal';
 
 const NAV_ITEMS = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/', roles: ['super_admin', 'admin', 'attendant', 'technician'] },
-  { id: 'orders', label: 'Ordens', icon: Receipt, path: '/orders', roles: ['super_admin', 'admin', 'attendant', 'technician'] },
-  { id: 'notes', label: 'Notas', icon: StickyNote, path: '/notes', roles: ['super_admin', 'admin', 'attendant'] },
-  { id: 'inventory', label: 'Produtos', icon: Package, path: '/inventory', roles: ['super_admin', 'admin', 'attendant', 'technician', 'client'] },
-  { id: 'clients', label: 'Clientes', icon: Users, path: '/clients', roles: ['super_admin', 'admin', 'attendant'] },
-  { id: 'vehicles', label: 'Frota', icon: CarIcon, path: '/vehicles', roles: ['super_admin', 'admin', 'attendant', 'technician'] },
-  { id: 'staff', label: 'Equipe', icon: Users, path: '/staff', roles: ['super_admin', 'admin'] },
+  { id: 'dashboard', label: 'Dashboard', title: 'Dashboard', description: 'Visão geral da operação da oficina.', icon: LayoutDashboard, path: '/', roles: ['super_admin', 'admin', 'attendant', 'technician'] },
+  { id: 'orders', label: 'Ordens', title: 'Ordens', description: 'Acompanhe serviços, status e responsáveis.', icon: Receipt, path: '/orders', roles: ['super_admin', 'admin', 'attendant', 'technician'] },
+  { id: 'notes', label: 'Notas', title: 'Notas de Serviço', description: 'Visualize, crie e imprima notas para clientes.', icon: StickyNote, path: '/notes', roles: ['super_admin', 'admin', 'attendant'] },
+  { id: 'inventory', label: 'Produtos', title: 'Estoque de Peças', description: 'Gerencie peças, lubrificantes e itens de reposição.', icon: Package, path: '/inventory', roles: ['super_admin', 'admin', 'attendant', 'technician', 'client'] },
+  { id: 'clients', label: 'Clientes', title: 'Gestão de Clientes', description: 'Visualize e gerencie sua base de proprietários.', icon: Users, path: '/clients', roles: ['super_admin', 'admin', 'attendant'] },
+  { id: 'vehicles', label: 'Frota', title: 'Frota de Veículos', description: 'Gerencie especificações técnicas e proprietários.', icon: CarIcon, path: '/vehicles', roles: ['super_admin', 'admin', 'attendant', 'technician'] },
+  { id: 'staff', label: 'Equipe', title: 'Equipe da Oficina', description: 'Gerencie técnicos e colaboradores por setor.', icon: Users, path: '/staff', roles: ['super_admin', 'admin'] },
 ] as const;
 
 function AppContent() {
@@ -52,6 +52,7 @@ function AppContent() {
   const activeTab = NAV_ITEMS.find(item => 
     item.path === '/' ? location.pathname === '/' : location.pathname.startsWith(item.path)
   )?.id || 'dashboard';
+  const activeNavItem = NAV_ITEMS.find(item => item.id === activeTab) || NAV_ITEMS[0];
 
   return (
     <div className="min-h-screen bg-surface-50 text-surface-900 font-sans selection:bg-brand-primary/10">
@@ -156,9 +157,12 @@ function AppContent() {
               />
             </div>
             <div className="flex flex-col">
-              <h2 className="text-xl font-display font-bold text-surface-900 capitalize leading-none">
-                {NAV_ITEMS.find(i => i.id === activeTab)?.label}
+              <h2 className="text-xl font-display font-bold text-surface-900 leading-tight">
+                {activeNavItem.title}
               </h2>
+              <p className="hidden sm:block text-sm text-surface-500 font-medium mt-1">
+                {activeNavItem.description}
+              </p>
             </div>
           </div>
           

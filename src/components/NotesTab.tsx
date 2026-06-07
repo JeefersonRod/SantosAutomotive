@@ -256,10 +256,16 @@ export default function NotesTab() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 print:hidden">
-        <div>
-          <h1 className="text-2xl font-display font-bold text-surface-900">Notas de Serviço</h1>
-          <p className="text-surface-500 text-sm">Visualize e imprima notas para os clientes</p>
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 print:hidden">
+        <div className="relative group flex-1">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-400 group-focus-within:text-brand-primary transition-colors" />
+          <input 
+            type="text" 
+            placeholder="Buscar por cliente, placa ou número..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-12 pr-4 py-3 bg-white border border-surface-200 rounded-2xl outline-none focus:ring-2 focus:ring-brand-primary/10 focus:border-brand-primary transition-all shadow-sm"
+          />
         </div>
         <button 
           onClick={() => setIsModalOpen(true)}
@@ -267,17 +273,6 @@ export default function NotesTab() {
         >
           <Plus className="w-5 h-5" /> Nova Nota Manual
         </button>
-      </div>
-
-      <div className="relative group max-w-md print:hidden">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-400 group-focus-within:text-brand-primary transition-colors" />
-        <input 
-          type="text" 
-          placeholder="Buscar por cliente, placa ou número..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-12 pr-4 py-3 bg-white border border-surface-200 rounded-2xl outline-none focus:ring-2 focus:ring-brand-primary/10 focus:border-brand-primary transition-all shadow-sm"
-        />
       </div>
 
       <div className="print:hidden">

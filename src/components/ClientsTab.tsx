@@ -436,35 +436,29 @@ export default function ClientsTab() {
 
   return (
     <div className="space-y-10">
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
-        <div>
-          <h2 className="text-3xl font-display font-bold text-surface-950 tracking-tight">Gestão de Clientes</h2>
-          <p className="text-surface-500 mt-1 font-medium">Visualize e gerencie sua base de proprietários.</p>
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+        <div className="relative flex-1 group">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-400 group-focus-within:text-brand-primary transition-colors" />
+          <input 
+            type="text" 
+            placeholder="Buscar por nome, placa ou telefone..." 
+            className="w-full pl-12 pr-4 py-4 bg-white border border-surface-200 rounded-2xl outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition-all shadow-sm font-medium"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
         </div>
-        <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
-          <div className="relative flex-1 lg:min-w-[350px] group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-400 group-focus-within:text-brand-primary transition-colors" />
-            <input 
-              type="text" 
-              placeholder="Buscar por nome, placa ou telefone..." 
-              className="w-full pl-12 pr-4 py-4 bg-white border border-surface-200 rounded-2xl outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition-all shadow-sm font-medium"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          {user?.permissions !== 'technician' && (
-            <button 
-              id="add-client-btn"
-              onClick={(e) => {
-                console.log('Add Client button clicked');
-                handleOpenModal(e);
-              }}
-              className="bg-brand-primary hover:bg-brand-primary/90 text-white px-8 py-4 rounded-2xl flex items-center justify-center gap-3 font-bold transition-all shadow-xl shadow-brand-primary/20 active:scale-95 whitespace-nowrap"
-            >
-              <Plus className="w-6 h-6" /> Novo Cliente
-            </button>
-          )}
-        </div>
+        {user?.permissions !== 'technician' && (
+          <button 
+            id="add-client-btn"
+            onClick={(e) => {
+              console.log('Add Client button clicked');
+              handleOpenModal(e);
+            }}
+            className="bg-brand-primary hover:bg-brand-primary/90 text-white px-8 py-4 rounded-2xl flex items-center justify-center gap-3 font-bold transition-all shadow-xl shadow-brand-primary/20 active:scale-95 whitespace-nowrap"
+          >
+            <Plus className="w-6 h-6" /> Novo Cliente
+          </button>
+        )}
       </div>
 
       <div className="grid gap-5">

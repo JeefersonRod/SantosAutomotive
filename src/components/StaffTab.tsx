@@ -179,14 +179,45 @@ export default function StaffTab() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-display font-bold text-surface-950 tracking-tight">Equipe da Oficina</h2>
-          <p className="text-surface-500">Gerencie os técnicos e colaboradores por setor.</p>
+      <div className="flex flex-col xl:flex-row items-stretch xl:items-center gap-4">
+        <div className="relative flex-1 min-w-0">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-400" />
+          <input 
+            type="text" 
+            placeholder="Buscar por nome ou cargo..." 
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-12 pr-4 py-3 bg-white border border-surface-200 rounded-xl focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition-all outline-none"
+          />
+        </div>
+        <div className="flex gap-2 overflow-x-auto pb-2 xl:pb-0 no-scrollbar xl:max-w-[520px]">
+          <button 
+            onClick={() => setSelectedRole(null)}
+            className={`whitespace-nowrap px-4 py-2 rounded-lg border transition-colors text-sm font-medium ${
+              !selectedRole 
+                ? 'bg-brand-primary text-white border-brand-primary' 
+                : 'bg-white text-surface-600 border-surface-200 hover:bg-surface-50'
+            }`}
+          >
+            Todos
+          </button>
+          {Object.entries(AVAILABLE_ROLES).map(([key, { label }]) => (
+            <button 
+              key={key} 
+              onClick={() => setSelectedRole(key === selectedRole ? null : key)}
+              className={`whitespace-nowrap px-4 py-2 rounded-lg border transition-colors text-sm font-medium ${
+                selectedRole === key 
+                  ? 'bg-brand-primary text-white border-brand-primary' 
+                  : 'bg-white text-surface-600 border-surface-200 hover:bg-surface-50'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
         <button 
           onClick={() => handleOpenModal()}
-          className="flex items-center gap-2 bg-brand-primary text-white px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-brand-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+          className="flex items-center justify-center gap-2 bg-brand-primary text-white px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-brand-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all whitespace-nowrap"
         >
           <Plus className="w-5 h-5" />
           Novo Integrante
@@ -238,45 +269,6 @@ export default function StaffTab() {
           </div>
         </section>
       )}
-
-      {/* Search and Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-400" />
-          <input 
-            type="text" 
-            placeholder="Buscar por nome ou cargo..." 
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 bg-white border border-surface-200 rounded-xl focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition-all outline-none"
-          />
-        </div>
-        <div className="flex gap-2 overflow-x-auto pb-2 sm:pb-0 no-scrollbar">
-          <button 
-            onClick={() => setSelectedRole(null)}
-            className={`whitespace-nowrap px-4 py-2 rounded-lg border transition-colors text-sm font-medium ${
-              !selectedRole 
-                ? 'bg-brand-primary text-white border-brand-primary' 
-                : 'bg-white text-surface-600 border-surface-200 hover:bg-surface-50'
-            }`}
-          >
-            Todos
-          </button>
-          {Object.entries(AVAILABLE_ROLES).map(([key, { label }]) => (
-            <button 
-              key={key} 
-              onClick={() => setSelectedRole(key === selectedRole ? null : key)}
-              className={`whitespace-nowrap px-4 py-2 rounded-lg border transition-colors text-sm font-medium ${
-                selectedRole === key 
-                  ? 'bg-brand-primary text-white border-brand-primary' 
-                  : 'bg-white text-surface-600 border-surface-200 hover:bg-surface-50'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
 
       {/* Staff Grid */}
       {loading ? (

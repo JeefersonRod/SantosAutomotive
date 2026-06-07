@@ -118,14 +118,16 @@ export default function InventoryTab() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-display font-bold text-surface-950 tracking-tight">
-            {isClient ? 'Hall de Produtos' : 'Estoque de Peças'}
-          </h2>
-          <p className="text-surface-500">
-            {isClient ? 'Confira nossas peças, acessórios e promoções exclusivas.' : 'Gerencie peças, lubrificantes e itens de reposição.'}
-          </p>
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-400" />
+          <input 
+            type="text" 
+            placeholder="Buscar por nome ou categoria..." 
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-12 pr-4 py-3 bg-white border border-surface-200 rounded-xl focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition-all outline-none"
+          />
         </div>
         {!isClient && (
           <button 
@@ -136,17 +138,6 @@ export default function InventoryTab() {
             Novo Produto
           </button>
         )}
-      </div>
-
-      <div className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-400" />
-        <input 
-          type="text" 
-          placeholder="Buscar por nome ou categoria..." 
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-12 pr-4 py-3 bg-white border border-surface-200 rounded-xl focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition-all outline-none"
-        />
       </div>
 
       {loading ? (
