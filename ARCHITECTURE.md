@@ -1,0 +1,27 @@
+# Arquitetura
+
+## Stack
+
+- Frontend: React, TypeScript, Vite, Tailwind.
+- Backend: Express/Node em `server.ts`.
+- Banco/API: Supabase.
+- Deploy: Railway.
+- Push: Web Push com VAPID, sem Firebase.
+
+## Estrutura Atual
+
+- `src/App.tsx`: shell, rotas, sidebar, topbar e guarda visual de acesso.
+- `src/components`: telas legadas grandes e componentes compartilhados.
+- `src/components/ui`: base inicial do design system.
+- `src/services`: cliente HTTP e servicos por dominio.
+- `src/hooks`: hooks reutilizaveis.
+- `src/types`: tipos por dominio, extraidos de forma gradual.
+- `src/modules`: fronteiras futuras por modulo.
+
+## Decisao Arquitetural
+
+O sistema nao deve ser organizado ao redor de produtos, loja ou estoque comercial. A organizacao desejada e por operacao de oficina: atendimento, clientes, veiculos, O.S., diagnostico, agenda, financeiro operacional, equipe, relatorios e configuracoes.
+
+## Legado Tecnico Temporario
+
+`products`, `/api/products` e `InventoryTab` permanecem no codigo/banco por compatibilidade. Eles nao fazem parte da experiencia principal e nao devem ser promovidos como modulo novo sem plano de migration.

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Wrench, Receipt, StickyNote, Users, Car as CarIcon, LayoutDashboard, Menu, X, ChevronRight, LogOut, Bell, Package } from 'lucide-react';
+import { Wrench, Receipt, StickyNote, Users, Car as CarIcon, LayoutDashboard, Menu, X, ChevronRight, LogOut, Bell } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Routes, Route, Link, useLocation, useNavigate, Navigate, HashRouter } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -11,15 +11,14 @@ import ClientsTab from './components/ClientsTab';
 import VehiclesTab from './components/VehiclesTab';
 import OrdersTab from './components/OrdersTab';
 import NotesTab from './components/NotesTab';
-import InventoryTab from './components/InventoryTab';
 import StaffTab from './components/StaffTab';
 import UserProfileModal from './components/UserProfileModal';
+import { AccessDeniedState } from './components/ui';
 
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', title: 'Dashboard', description: 'Visão geral da operação da oficina.', icon: LayoutDashboard, path: '/', roles: ['super_admin', 'admin', 'attendant', 'technician'] },
   { id: 'orders', label: 'Ordens', title: 'Ordens', description: 'Acompanhe serviços, status e responsáveis.', icon: Receipt, path: '/orders', roles: ['super_admin', 'admin', 'attendant', 'technician'] },
   { id: 'notes', label: 'Notas', title: 'Notas de Serviço', description: 'Visualize, crie e imprima notas para clientes.', icon: StickyNote, path: '/notes', roles: ['super_admin', 'admin', 'attendant'] },
-  { id: 'inventory', label: 'Produtos', title: 'Estoque de Peças', description: 'Gerencie peças, lubrificantes e itens de reposição.', icon: Package, path: '/inventory', roles: ['super_admin', 'admin', 'attendant', 'technician', 'client'] },
   { id: 'clients', label: 'Clientes', title: 'Gestão de Clientes', description: 'Visualize e gerencie sua base de proprietários.', icon: Users, path: '/clients', roles: ['super_admin', 'admin', 'attendant'] },
   { id: 'vehicles', label: 'Frota', title: 'Frota de Veículos', description: 'Gerencie especificações técnicas e proprietários.', icon: CarIcon, path: '/vehicles', roles: ['super_admin', 'admin', 'attendant', 'technician'] },
   { id: 'staff', label: 'Equipe', title: 'Equipe da Oficina', description: 'Gerencie técnicos e colaboradores por setor.', icon: Users, path: '/staff', roles: ['super_admin', 'admin'] },
@@ -48,11 +47,24 @@ function AppContent() {
   const filteredNavItems = NAV_ITEMS.filter(item => 
     item.roles.includes(user.permissions || 'technician')
   );
+  const currentRole = user.permissions || 'technician';
+  const canAccess = (item: typeof NAV_ITEMS[number]) => item.roles.includes(currentRole);
+  const firstAllowedPath = filteredNavItems[0]?.path;
+  const navigateToTab = (tab: string) => {
+    const target = NAV_ITEMS.find(item => item.id === tab);
+    if (target && canAccess(target)) {
+      navigate(target.path);
+    }
+  };
+  const guardedRoute = (id: typeof NAV_ITEMS[number]['id'], element: React.ReactNode) => {
+    const item = NAV_ITEMS.find(navItem => navItem.id === id);
+    return item && canAccess(item) ? element : <AccessDeniedState />;
+  };
 
   const activeTab = NAV_ITEMS.find(item => 
     item.path === '/' ? location.pathname === '/' : location.pathname.startsWith(item.path)
   )?.id || 'dashboard';
-  const activeNavItem = NAV_ITEMS.find(item => item.id === activeTab) || NAV_ITEMS[0];
+  const activeNavItem = NAV_ITEMS.find(item => item.id === activeTab) || filteredNavItems[0] || NAV_ITEMS[0];
 
   return (
     <div className="min-h-screen bg-surface-50 text-surface-900 font-sans selection:bg-brand-primary/10">
@@ -208,14 +220,13 @@ function AppContent() {
               transition={{ duration: 0.2 }}
             >
               <Routes>
-                <Route path="/" element={<DashboardTab onNavigate={(tab) => navigate(NAV_ITEMS.find(i => i.id === tab)?.path || '/')} />} />
-                <Route path="/orders" element={<OrdersTab onNavigate={(tab) => navigate(NAV_ITEMS.find(i => i.id === tab)?.path || '/')} />} />
-                <Route path="/notes" element={<NotesTab />} />
-                <Route path="/inventory" element={<InventoryTab />} />
-                <Route path="/clients" element={<ClientsTab />} />
-                <Route path="/vehicles" element={<VehiclesTab />} />
-                <Route path="/staff" element={<StaffTab />} />
-                <Route path="*" element={<Navigate to="/" replace />} />
+                <Route path="/" element={guardedRoute('dashboard', <DashboardTab onNavigate={navigateToTab} />)} />
+                <Route path="/orders" element={guardedRoute('orders', <OrdersTab onNavigate={navigateToTab} />)} />
+                <Route path="/notes" element={guardedRoute('notes', <NotesTab />)} />
+                <Route path="/clients" element={guardedRoute('clients', <ClientsTab />)} />
+                <Route path="/vehicles" element={guardedRoute('vehicles', <VehiclesTab />)} />
+                <Route path="/staff" element={guardedRoute('staff', <StaffTab />)} />
+                <Route path="*" element={firstAllowedPath ? <Navigate to={firstAllowedPath} replace /> : <AccessDeniedState />} />
               </Routes>
             </motion.div>
           </AnimatePresence>

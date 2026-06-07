@@ -20,6 +20,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  useEffect(() => {
+    const handleSessionExpired = () => setUser(null);
+    window.addEventListener('santos:session-expired', handleSessionExpired);
+    return () => window.removeEventListener('santos:session-expired', handleSessionExpired);
+  }, []);
+
   const checkAuth = async () => {
     try {
       const res = await fetch('/api/auth/me', { credentials: 'include' });

@@ -2,6 +2,8 @@
 
 Sistema interno para gestao de oficina automotiva.
 
+O projeto nao tem foco em loja, vitrine, e-commerce, fornecedores, compras ou promocoes. Pecas podem aparecer apenas como itens internos de ordens de servico e notas.
+
 ## Stack
 
 - Frontend: React, Vite, TypeScript.
@@ -39,3 +41,13 @@ O servidor local sobe em `http://localhost:3000`.
 ## Deploy
 
 Veja [DEPLOYMENT.md](./DEPLOYMENT.md).
+
+## Documentacao Interna
+
+- [ARCHITECTURE.md](./ARCHITECTURE.md)
+- [MODULES.md](./MODULES.md)
+- [API_ROUTES.md](./API_ROUTES.md)
+- [RBAC_MATRIX.md](./RBAC_MATRIX.md)
+- [DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md)
+- [ROADMAP.md](./ROADMAP.md)
+- [CHANGELOG.md](./CHANGELOG.md)

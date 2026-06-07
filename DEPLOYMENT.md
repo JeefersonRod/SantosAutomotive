@@ -63,6 +63,7 @@ O servidor escuta `process.env.PORT` em `0.0.0.0`.
 - Firebase nao esta em uso.
 - `.env` real nao esta versionado.
 - `node_modules`, `dist` e cache nao estao versionados.
+- Produtos/loja nao estao expostos na navegacao principal.
 - `npm run typecheck` passa.
 - `npm run lint` passa.
 - `npm run build` passa.

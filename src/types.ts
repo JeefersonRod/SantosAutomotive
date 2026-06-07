@@ -77,6 +77,8 @@ export interface Note {
   items?: NoteItem[];
 }
 
+// Legacy technical type kept for compatibility with the existing database/API.
+// Products are no longer exposed as a primary commercial module in the app.
 export interface Product {
   id: number;
   name: string;

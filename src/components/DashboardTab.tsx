@@ -23,7 +23,7 @@ import {
   CheckSquare
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { Vehicle, OrderItem, StaffMember, ServiceOrder, Product } from '../types';
+import { Vehicle, OrderItem, StaffMember, ServiceOrder } from '../types';
 import MultiImageUpload from './MultiImageUpload';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
@@ -45,6 +45,7 @@ interface Stats {
 
 export default function DashboardTab({ onNavigate }: { onNavigate: (tab: any) => void }) {
   const { user } = useAuth();
+  const canLoadStaff = user?.permissions === 'super_admin' || user?.permissions === 'admin';
   const [stats, setStats] = useState<Stats>({ 
     clients: 0, 
     vehicles: 0, 
@@ -59,7 +60,6 @@ export default function DashboardTab({ onNavigate }: { onNavigate: (tab: any) =>
   });
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [staff, setStaff] = useState<StaffMember[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
   const [recentOrders, setRecentOrders] = useState<ServiceOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [dateFilter, setDateFilter] = useState<'today' | '7days' | '30days' | 'all'>('all');
@@ -123,14 +123,6 @@ export default function DashboardTab({ onNavigate }: { onNavigate: (tab: any) =>
     }
   };
 
-  const fetchProducts = async () => {
-    try {
-      const res = await fetch(`${API_URL}/products`, { credentials: 'include' });
-      const data = await res.json();
-      if (Array.isArray(data)) setProducts(data);
-    } catch (err) { console.error(err); }
-  };
-
   const fetchRecentOrders = async () => {
     try {
       const res = await fetch(`${API_URL}/orders`, { credentials: 'include' });
@@ -165,14 +157,13 @@ export default function DashboardTab({ onNavigate }: { onNavigate: (tab: any) =>
       await Promise.allSettled([
         fetchStats(),
         fetchVehicles(),
-        fetchStaff(),
-        fetchProducts(),
+        canLoadStaff ? fetchStaff() : Promise.resolve(setStaff([])),
         fetchRecentOrders()
       ]);
       setLoading(false);
     };
     loadAll();
-  }, [dateFilter]);
+  }, [dateFilter, canLoadStaff]);
 
   const handleCreateOS = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -409,24 +400,31 @@ export default function DashboardTab({ onNavigate }: { onNavigate: (tab: any) =>
               <div className="grid sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="micro-label ml-1">Técnicos (Opcional)</label>
-                  <div className="flex flex-wrap gap-2 p-3 bg-surface-50 border border-surface-200 rounded-2xl max-h-32 overflow-y-auto">
-                    {staff.map(s => (
-                      <label key={s.id} className="flex items-center gap-2 cursor-pointer bg-white px-3 py-1.5 rounded-xl border border-surface-100 shadow-sm hover:border-brand-primary transition-all">
-                        <input 
-                          type="checkbox"
-                          checked={osForm.technician_ids.includes(s.id)}
-                          onChange={(e) => {
-                            const ids = e.target.checked 
-                              ? [...osForm.technician_ids, s.id]
-                              : osForm.technician_ids.filter(id => id !== s.id);
-                            setOsForm({...osForm, technician_ids: ids});
-                          }}
-                          className="w-3.5 h-3.5 text-brand-primary rounded border-surface-300 focus:ring-brand-primary"
-                        />
-                        <span className="text-[10px] font-bold text-surface-700">{s.name}</span>
-                      </label>
-                    ))}
-                  </div>
+                  {canLoadStaff ? (
+                    <div className="flex flex-wrap gap-2 p-3 bg-surface-50 border border-surface-200 rounded-2xl max-h-32 overflow-y-auto">
+                      {staff.map(s => (
+                        <label key={s.id} className="flex items-center gap-2 cursor-pointer bg-white px-3 py-1.5 rounded-xl border border-surface-100 shadow-sm hover:border-brand-primary transition-all">
+                          <input
+                            type="checkbox"
+                            checked={osForm.technician_ids.includes(s.id)}
+                            onChange={(e) => {
+                              const ids = e.target.checked
+                                ? [...osForm.technician_ids, s.id]
+                                : osForm.technician_ids.filter(id => id !== s.id);
+                              setOsForm({...osForm, technician_ids: ids});
+                            }}
+                            className="w-3.5 h-3.5 text-brand-primary rounded border-surface-300 focus:ring-brand-primary"
+                          />
+                          <span className="text-[10px] font-bold text-surface-700">{s.name}</span>
+                        </label>
+                      ))}
+                      {staff.length === 0 && <p className="text-xs text-surface-400">Nenhum técnico cadastrado.</p>}
+                    </div>
+                  ) : (
+                    <p className="text-xs font-medium text-surface-400 bg-surface-50 border border-surface-200 rounded-2xl p-3">
+                      Atribuição de técnico restrita a administradores.
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <label className="micro-label ml-1">Observações / Sintomas</label>
@@ -547,23 +545,11 @@ export default function DashboardTab({ onNavigate }: { onNavigate: (tab: any) =>
                   <div className="sm:col-span-2 relative">
                     <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
                     <input 
-                      list="product-suggestions"
-                      placeholder="Descrição ou selecione produto..."
+                      placeholder="Descrição do item ou serviço..."
                       className="w-full pl-10 pr-4 py-3 bg-white border border-surface-200 rounded-xl outline-none focus:ring-2 focus:ring-brand-primary text-sm font-medium"
                       value={newItem.description}
-                      onChange={e => {
-                        const val = e.target.value;
-                        const product = products.find(p => p.name === val);
-                        if (product) {
-                          setNewItem({ ...newItem, description: product.name, price: product.price, type: 'parts' });
-                        } else {
-                          setNewItem({ ...newItem, description: val });
-                        }
-                      }}
+                      onChange={e => setNewItem({ ...newItem, description: e.target.value })}
                     />
-                    <datalist id="product-suggestions">
-                      {products.map(p => <option key={p.id} value={p.name} />)}
-                    </datalist>
                   </div>
                   <div className="sm:col-span-1 relative">
                     <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
