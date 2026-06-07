@@ -1,0 +1,20 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0066FF;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#003399;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="128" fill="#0A0A0A"/>
+  <!-- Gear Outer -->
+  <path d="M256 120C180.889 120 120 180.889 120 256C120 331.111 180.889 392 256 392C331.111 392 392 331.111 392 256C392 180.889 331.111 120 256 120ZM256 160C308.971 160 352 203.029 352 256C352 308.971 308.971 352 256 352C203.029 352 160 308.971 160 256C160 203.029 203.029 160 256 160Z" fill="url(#grad1)"/>
+  <!-- Wrench -->
+  <path d="M256 200L256 312M220 256H292" stroke="white" stroke-width="32" stroke-linecap="round"/>
+  <circle cx="256" cy="256" r="40" fill="#0A0A0A" stroke="white" stroke-width="12"/>
+  <!-- Decorative dots -->
+  <circle cx="256" cy="140" r="8" fill="white"/>
+  <circle cx="256" cy="372" r="8" fill="white"/>
+  <circle cx="140" cy="256" r="8" fill="white"/>
+  <circle cx="372" cy="256" r="8" fill="white"/>
+</svg>
+

@@ -1,0 +1,115 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@400;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-brand-primary: #0066FF;
+  --color-brand-secondary: #00D1FF;
+  --color-brand-accent: #FF3B30;
+  
+  --color-surface-50: #F8FAFC;
+  --color-surface-100: #F1F5F9;
+  --color-surface-200: #E2E8F0;
+  --color-surface-300: #CBD5E1;
+  --color-surface-400: #94A3B8;
+  --color-surface-500: #64748B;
+  --color-surface-600: #475569;
+  --color-surface-700: #334155;
+  --color-surface-800: #1E293B;
+  --color-surface-900: #0F172A;
+  --color-surface-950: #020617;
+}
+
+@layer base {
+  body {
+    @apply bg-surface-50 text-surface-900 antialiased selection:bg-brand-primary/20;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-white/80 backdrop-blur-md border border-white/20 shadow-sm;
+  }
+  
+  .tech-border {
+    @apply border border-surface-200 relative;
+  }
+  
+  .tech-border::before {
+    content: '';
+    @apply absolute -top-px -left-px w-2 h-2 border-t-2 border-l-2 border-brand-primary opacity-0 transition-opacity duration-300;
+  }
+  
+  .tech-card:hover .tech-border::before {
+    @apply opacity-100;
+  }
+
+  .tech-card {
+    @apply transition-all duration-300 hover:shadow-2xl hover:shadow-brand-primary/5 hover:-translate-y-0.5;
+  }
+
+  .data-value {
+    @apply font-mono tracking-tight;
+  }
+
+  .micro-label {
+    @apply text-[10px] font-bold uppercase tracking-widest text-surface-400;
+  }
+
+  .btn-primary {
+    @apply bg-brand-primary hover:bg-brand-primary/90 text-white px-6 py-3 rounded-2xl font-bold transition-all shadow-lg shadow-brand-primary/20 active:scale-95 flex items-center justify-center gap-2;
+  }
+
+  .input-tech {
+    @apply w-full px-5 py-4 bg-surface-50 border border-surface-200 rounded-2xl outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary focus:bg-white transition-all font-medium placeholder:text-surface-300;
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  body {
+    background: white !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  /* Hide navigation, sidebars, buttons during print */
+  nav, aside, header, button, .install-prompt {
+    display: none !important;
+  }
+
+  main {
+    margin-left: 0 !important;
+    padding: 0 !important;
+  }
+
+  .tech-card {
+    box-shadow: none !important;
+    border: 1px solid #eee !important;
+    break-inside: avoid;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-surface-200 rounded-full hover:bg-surface-300 transition-colors;
+}
