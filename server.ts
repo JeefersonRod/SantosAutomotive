@@ -511,75 +511,85 @@ apiRouter.use(ensureAdmin);
   });
 
   apiRouter.post("/staff", protect, adminOnly, async (req, res) => {
-    const user = (req.session as any).user;
-    const { name, roles, phone, email, username, password, permissions } = req.body;
+    try {
+      const user = (req.session as any).user;
+      const { name, roles, phone, email, username, password, permissions } = req.body;
 
-    // Only super_admin can create admin or super_admin
-    if (user.permissions !== 'super_admin' && (permissions === 'admin' || permissions === 'super_admin')) {
-      return res.status(403).json({ error: "Apenas o administrador chefe pode atribuir níveis administrativos" });
-    }
-
-    const hashedPassword = await bcrypt.hash(password || "123456", 10);
-    const roleString = Array.isArray(roles) ? roles.join(',') : 'other';
-    
-    const insertData: any = { 
-      name, 
-      role: roleString, 
-      department: Array.isArray(roles) ? roles[0] : 'other', 
-      phone, 
-      email, 
-      username: username || email, 
-      password: hashedPassword, 
-      permissions: permissions || 'technician'
-    };
-    const { data, error } = await supabase
-      .from("staff_members")
-      .insert(insertData)
-      .select("id, name, role, department, phone, email, username, permissions")
-      .single();
-    
-    if (error) {
-      if (error.code === '23505') {
-        res.status(400).json({ error: "Usuário já existe" });
-      } else {
-        res.status(500).json({ error: error.message });
+      // Only super_admin can create admin or super_admin
+      if (user.permissions !== 'super_admin' && (permissions === 'admin' || permissions === 'super_admin')) {
+        return res.status(403).json({ error: "Apenas o administrador chefe pode atribuir níveis administrativos" });
       }
-      return;
+
+      const hashedPassword = await bcrypt.hash(password || "123456", 10);
+      const roleString = Array.isArray(roles) ? roles.join(',') : 'other';
+      
+      const insertData: any = { 
+        name, 
+        role: roleString, 
+        department: Array.isArray(roles) ? roles[0] : 'other', 
+        phone, 
+        email, 
+        username: username || email, 
+        password: hashedPassword, 
+        permissions: permissions || 'technician'
+      };
+      const { data, error } = await supabase
+        .from("staff_members")
+        .insert(insertData)
+        .select("id, name, role, department, phone, email, username, permissions")
+        .single();
+      
+      if (error) {
+        if (error.code === '23505') {
+          res.status(400).json({ error: "Usuário já existe" });
+        } else {
+          res.status(500).json({ error: error.message });
+        }
+        return;
+      }
+      res.status(201).json(data);
+    } catch (err: any) {
+      console.error("Error creating staff member:", err);
+      res.status(500).json({ error: `Falha ao conectar ao Supabase: ${err.message || "erro desconhecido"}` });
     }
-    res.status(201).json(data);
   });
 
   apiRouter.put("/staff/:id", protect, adminOnly, async (req, res) => {
-    const user = (req.session as any).user;
-    const targetId = req.params.id;
-    const { name, roles, phone, email, username, password, permissions, active } = req.body;
-    
-    // Only super_admin can change permissions of an admin or promote to admin/super_admin
-    if (user.permissions !== 'super_admin') {
-      const { data: target } = await supabase.from("staff_members").select("permissions").eq("id", targetId).single();
-      if (target && (target.permissions === 'admin' || target.permissions === 'super_admin' || permissions === 'admin' || permissions === 'super_admin')) {
-        return res.status(403).json({ error: "Apenas o administrador chefe pode gerenciar permissões administrativas" });
+    try {
+      const user = (req.session as any).user;
+      const targetId = req.params.id;
+      const { name, roles, phone, email, username, password, permissions, active } = req.body;
+      
+      // Only super_admin can change permissions of an admin or promote to admin/super_admin
+      if (user.permissions !== 'super_admin') {
+        const { data: target } = await supabase.from("staff_members").select("permissions").eq("id", targetId).single();
+        if (target && (target.permissions === 'admin' || target.permissions === 'super_admin' || permissions === 'admin' || permissions === 'super_admin')) {
+          return res.status(403).json({ error: "Apenas o administrador chefe pode gerenciar permissões administrativas" });
+        }
       }
-    }
 
-    const roleString = Array.isArray(roles) ? roles.join(',') : 'other';
-    const updateData: any = { 
-      name, 
-      role: roleString, 
-      department: Array.isArray(roles) ? roles[0] : 'other', 
-      phone, 
-      email, 
-      username, 
-      permissions, 
-      active: active ? 1 : 0 
-    };
-    if (password) {
-      updateData.password = await bcrypt.hash(password, 10);
-    }
+      const roleString = Array.isArray(roles) ? roles.join(',') : 'other';
+      const updateData: any = { 
+        name, 
+        role: roleString, 
+        department: Array.isArray(roles) ? roles[0] : 'other', 
+        phone, 
+        email, 
+        username, 
+        permissions, 
+        active: active ? 1 : 0 
+      };
+      if (password) {
+        updateData.password = await bcrypt.hash(password, 10);
+      }
 
-    const { error } = await supabase.from("staff_members").update(updateData).eq("id", targetId);
-    if (error) return res.status(500).json({ error: error.message });
-    res.json({ success: true });
+      const { error } = await supabase.from("staff_members").update(updateData).eq("id", targetId);
+      if (error) return res.status(500).json({ error: error.message });
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error("Error updating staff member:", err);
+      res.status(500).json({ error: `Falha ao conectar ao Supabase: ${err.message || "erro desconhecido"}` });
+    }
   });
 
   apiRouter.delete("/staff/:id", protect, adminOnly, async (req, res) => {

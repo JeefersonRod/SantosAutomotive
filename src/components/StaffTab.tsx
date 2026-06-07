@@ -11,6 +11,8 @@ const API_URL = '/api';
 const AVAILABLE_ROLES = {
   mechanic: { label: 'Mecânica', color: 'bg-blue-500', text: 'text-blue-500' },
   electrical: { label: 'Elétrica', color: 'bg-amber-500', text: 'text-amber-500' },
+  electronics: { label: 'Eletrônica', color: 'bg-cyan-500', text: 'text-cyan-500' },
+  programming: { label: 'Programação', color: 'bg-indigo-500', text: 'text-indigo-500' },
   admin: { label: 'Administrativo', color: 'bg-emerald-500', text: 'text-emerald-500' },
   attendant: { label: 'Atendimento', color: 'bg-purple-500', text: 'text-purple-500' },
   other: { label: 'Outros', color: 'bg-surface-400', text: 'text-surface-400' },
@@ -115,6 +117,12 @@ export default function StaffTab() {
       console.error(err);
       toast.error('Erro de conexão ao salvar integrante');
     }
+  };
+
+  const handleRolesChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedOptions = Array.from(e.currentTarget.selectedOptions) as HTMLOptionElement[];
+    const roles = selectedOptions.map(option => option.value);
+    setFormData({ ...formData, roles });
   };
 
   const handleDeleteMember = async (id: number) => {
@@ -409,31 +417,20 @@ export default function StaffTab() {
 
                 <div className="space-y-3">
                   <label className="text-sm font-bold text-surface-700">Cargos / Setores</label>
-                  <div className="flex flex-wrap gap-2">
-                    {Object.entries(AVAILABLE_ROLES).map(([key, { label, color }]) => {
-                      const isSelected = formData.roles?.includes(key);
-                      return (
-                        <button
-                          key={key}
-                          type="button"
-                          onClick={() => {
-                            const currentRoles = formData.roles || [];
-                            const newRoles = isSelected 
-                              ? currentRoles.filter(r => r !== key)
-                              : [...currentRoles, key];
-                            setFormData({ ...formData, roles: newRoles });
-                          }}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
-                            isSelected 
-                              ? `${color} text-white border-transparent shadow-md scale-105` 
-                              : 'bg-surface-50 text-surface-500 border-surface-200 hover:border-surface-300'
-                          }`}
-                        >
-                          {label}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <select
+                    multiple
+                    required
+                    size={Math.min(Object.keys(AVAILABLE_ROLES).length, 7)}
+                    value={formData.roles || []}
+                    onChange={handleRolesChange}
+                    className="w-full min-h-36 px-3 py-2 bg-surface-50 border border-surface-200 rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none text-sm font-semibold text-surface-700"
+                  >
+                    {Object.entries(AVAILABLE_ROLES).map(([key, { label }]) => (
+                      <option key={key} value={key} className="py-2 px-2">
+                        {label}
+                      </option>
+                    ))}
+                  </select>
                   {(!formData.roles || formData.roles.length === 0) && (
                     <p className="text-[10px] text-red-500 font-medium">Selecione pelo menos um cargo.</p>
                   )}
