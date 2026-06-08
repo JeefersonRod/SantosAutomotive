@@ -729,25 +729,49 @@ apiRouter.use(ensureAdmin);
       `)
       .order("created_at", { ascending: false });
 
-    // Technicians only see their orders or unassigned ones
+    // Technicians only see their assigned orders plus unassigned orders.
+    // Keep this as explicit ID filtering because PostgREST filters do not support
+    // the SQL subquery syntax that was previously used inside `.or(...)`.
     if (user.permissions === 'technician') {
-      const { data: techOrders } = await supabase
+      const { data: techOrders, error: techOrdersError } = await supabase
         .from("order_technicians")
         .select("order_id")
         .eq("technician_id", user.id);
-      
-      const orderIds = techOrders?.map((to: any) => to.order_id) || [];
-      
-      if (orderIds.length > 0) {
-        query = query.or(`id.in.(${orderIds.join(',')}),id.not.in.(select order_id from order_technicians)`);
-      } else {
-        // If no orders assigned, only show unassigned ones
-        const { data: allAssigned } = await supabase.from("order_technicians").select("order_id");
-        const allAssignedIds = allAssigned?.map((a: any) => a.order_id) || [];
-        if (allAssignedIds.length > 0) {
-          query = query.not("id", "in", `(${allAssignedIds.join(',')})`);
-        }
+
+      if (techOrdersError) {
+        return res.status(500).json({ error: formatApiError(techOrdersError) });
       }
+
+      const { data: allAssigned, error: allAssignedError } = await supabase
+        .from("order_technicians")
+        .select("order_id");
+
+      if (allAssignedError) {
+        return res.status(500).json({ error: formatApiError(allAssignedError) });
+      }
+      
+      const assignedToTechnicianIds = (techOrders || []).map((orderTech: any) => orderTech.order_id);
+      const assignedOrderIds = new Set((allAssigned || []).map((orderTech: any) => orderTech.order_id));
+
+      const { data: allOrders, error: allOrdersError } = await supabase
+        .from("service_orders")
+        .select("id");
+
+      if (allOrdersError) {
+        return res.status(500).json({ error: formatApiError(allOrdersError) });
+      }
+
+      const unassignedOrderIds = (allOrders || [])
+        .map((order: any) => order.id)
+        .filter((orderId: number) => !assignedOrderIds.has(orderId));
+
+      const visibleOrderIds = Array.from(new Set([...assignedToTechnicianIds, ...unassignedOrderIds]));
+
+      if (visibleOrderIds.length === 0) {
+        return res.json([]);
+      }
+
+      query = query.in("id", visibleOrderIds);
     }
 
     const { data: orders, error } = await query;
