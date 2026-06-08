@@ -2,6 +2,9 @@
 
 ## Atual
 
+- Auditado o fluxo atual de Ordens de Servico.
+- Aplicada Fase 1 segura da O.S. profissional sem migration: organizacao em secoes, labels mais operacionais, busca ampliada, status visual compativel e validacoes melhores.
+- Mantidos backend, banco, RBAC e status legados de O.S. sem alteracao.
 - Migradas chamadas de API de Clientes, Veiculos, Notas/Financeiro e Equipe para services por dominio.
 - Expandidos `clientService`, `vehicleService`, `financeService` e `staffService`.
 - Migradas chamadas de API de Dashboard, Ordens e AuthContext para services por dominio.

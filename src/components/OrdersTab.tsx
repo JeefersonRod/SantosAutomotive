@@ -7,7 +7,7 @@ import MultiImageUpload from './MultiImageUpload';
 import { useAuth } from '../contexts/AuthContext';
 import { ApiError } from '../services/api';
 import { orderService, staffService, vehicleService } from '../services';
-import { LoadingState } from './ui';
+import { FormSection, LoadingState } from './ui';
 
 const PREDEFINED_COMPONENTS = [
   "Sensor de Pressão do Rail",
@@ -17,6 +17,43 @@ const PREDEFINED_COMPONENTS = [
   "Sensor de Temperatura da Água",
   "Sensor de Temperatura do Ar"
 ];
+
+const ORDER_STATUS_OPTIONS: Array<{
+  value: ServiceOrder['status'];
+  label: string;
+  shortLabel: string;
+  helper: string;
+  selectClass: string;
+  badgeClass: string;
+}> = [
+  {
+    value: 'pending',
+    label: 'Recepcao / aguardando diagnostico',
+    shortLabel: 'Recepcao',
+    helper: 'O.S. aberta e aguardando triagem tecnica.',
+    selectClass: 'bg-amber-50 text-amber-700 border-amber-100',
+    badgeClass: 'bg-amber-50 text-amber-700 border-amber-100'
+  },
+  {
+    value: 'in_progress',
+    label: 'Em diagnostico / execucao',
+    shortLabel: 'Em trabalho',
+    helper: 'Servico em diagnostico, reparo ou testes.',
+    selectClass: 'bg-brand-primary/5 text-brand-primary border-brand-primary/10',
+    badgeClass: 'bg-brand-primary/10 text-brand-primary border-brand-primary/20'
+  },
+  {
+    value: 'completed',
+    label: 'Finalizada',
+    shortLabel: 'Finalizada',
+    helper: 'Servico finalizado, pronto para nota/pagamento.',
+    selectClass: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+    badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-100'
+  }
+];
+
+const getOrderStatusMeta = (status: ServiceOrder['status']) =>
+  ORDER_STATUS_OPTIONS.find((option) => option.value === status) || ORDER_STATUS_OPTIONS[0];
 
 export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => void }) {
   const { user } = useAuth();
@@ -190,6 +227,23 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!formData.vehicle_id) {
+      toast.error('Selecione o veiculo da O.S.');
+      return;
+    }
+
+    const description = formData.description.trim();
+    if (!description) {
+      toast.error('Informe a queixa inicial ou o servico solicitado.');
+      return;
+    }
+
+    const invalidItem = formData.items.find((item) => !item.description?.trim() || Number(item.price) < 0 || Number(item.quantity || 1) <= 0);
+    if (invalidItem) {
+      toast.error('Revise os itens da O.S.: descricao, quantidade e valor precisam estar validos.');
+      return;
+    }
     
     let create_note = false;
     if (formData.status === 'completed' && (!editingOrder || editingOrder.status !== 'completed')) {
@@ -197,10 +251,22 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
     }
 
     try {
+      const payload = {
+        ...formData,
+        description,
+        notes: formData.notes.trim(),
+        items: formData.items.map((item) => ({
+          ...item,
+          description: item.description.trim(),
+          price: Number(item.price) || 0,
+          quantity: Number(item.quantity) || 1
+        }))
+      };
+
       if (editingOrder) {
-        await orderService.update(editingOrder.id, { ...formData, create_note });
+        await orderService.update(editingOrder.id, { ...payload, create_note });
       } else {
-        await orderService.create({ ...formData, create_note });
+        await orderService.create({ ...payload, create_note });
       }
       fetchOrders();
       setIsModalOpen(false);
@@ -411,12 +477,43 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
     }
   };
 
+  const addOrderItem = () => {
+    const description = newItem.description.trim();
+    const price = Number(newItem.price) || 0;
+    const quantity = Number(newItem.quantity) || 1;
+
+    if (!description) {
+      toast.error('Informe a descricao do item ou servico.');
+      return;
+    }
+
+    if (price <= 0) {
+      toast.error('Informe um valor maior que zero para o item.');
+      return;
+    }
+
+    if (quantity <= 0) {
+      toast.error('Informe uma quantidade valida.');
+      return;
+    }
+
+    setFormData({
+      ...formData,
+      items: [...formData.items, { ...newItem, description, price, quantity }]
+    });
+    setNewItem({ description: '', price: 0, quantity: 1, type: 'parts' });
+  };
+
   const filteredOrders = orders.filter(o => {
+    const normalizedSearch = searchTerm.toLowerCase().trim();
     const matchesSearch =
-      o.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      o.plate?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      o.vehicle_model?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      o.description?.toLowerCase().includes(searchTerm.toLowerCase());
+      !normalizedSearch ||
+      o.id.toString().includes(normalizedSearch) ||
+      o.customer_name?.toLowerCase().includes(normalizedSearch) ||
+      o.plate?.toLowerCase().includes(normalizedSearch) ||
+      o.vehicle_model?.toLowerCase().includes(normalizedSearch) ||
+      o.description?.toLowerCase().includes(normalizedSearch) ||
+      o.technician_names?.some((name) => name.toLowerCase().includes(normalizedSearch));
     const matchesStatus = statusFilter === 'all' || o.status === statusFilter;
     const matchesPriority =
       priorityFilter === 'all' ||
@@ -434,7 +531,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-400 group-focus-within:text-brand-primary transition-colors" />
           <input 
             type="text" 
-            placeholder="Buscar por cliente, placa ou modelo..." 
+            placeholder="Buscar por OS, cliente, placa, modelo ou tecnico..."
             className="w-full pl-12 pr-4 py-3.5 bg-white border border-surface-200 rounded-2xl outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition-all shadow-sm font-medium"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -572,11 +669,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
                   <select 
                     value={order.status} 
                     onChange={(e) => updateStatus(order.id, e.target.value)} 
-                    className={`text-xs font-bold py-2.5 pl-4 pr-10 rounded-xl appearance-none cursor-pointer border transition-all ${
-                      order.status === 'completed' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 
-                      order.status === 'in_progress' ? 'bg-brand-primary/5 text-brand-primary border-brand-primary/10' : 
-                      'bg-surface-50 text-surface-500 border-surface-200'
-                    }`}
+                    className={`text-xs font-bold py-2.5 pl-4 pr-10 rounded-xl appearance-none cursor-pointer border transition-all ${getOrderStatusMeta(order.status).selectClass}`}
                   >
                     <option value="pending">Pendente</option>
                     <option value="in_progress">Em Andamento</option>
@@ -597,10 +690,10 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
                 )}
                 
                 <div className="flex gap-1 bg-surface-50 p-1 rounded-xl border border-surface-200">
-                  <button onClick={() => handlePrintOrder(order.id)} className="p-2 hover:bg-white hover:text-brand-primary rounded-lg text-surface-400 transition-all hover:shadow-sm" title="Imprimir OS"><Printer className="w-4 h-4" /></button>
-                  <button onClick={() => handleOpenModal(order)} className="p-2 hover:bg-white hover:text-brand-primary rounded-lg text-surface-400 transition-all hover:shadow-sm" title="Editar"><Edit2 className="w-4 h-4" /></button>
+                  <button onClick={() => handlePrintOrder(order.id)} className="p-2 bg-white text-brand-primary hover:bg-brand-primary hover:text-white rounded-lg transition-all hover:shadow-sm" title="Imprimir OS"><Printer className="w-4 h-4" /></button>
+                  <button onClick={() => handleOpenModal(order)} className="p-2 bg-white text-brand-primary hover:bg-brand-primary hover:text-white rounded-lg transition-all hover:shadow-sm" title="Editar"><Edit2 className="w-4 h-4" /></button>
                   {user?.permissions !== 'technician' && (
-                    <button onClick={() => deleteOrder(order.id)} className="p-2 hover:bg-white hover:text-brand-accent rounded-lg text-surface-400 transition-all hover:shadow-sm" title="Excluir"><Trash2 className="w-4 h-4" /></button>
+                    <button onClick={() => deleteOrder(order.id)} className="p-2 bg-white text-brand-accent hover:bg-brand-accent hover:text-white rounded-lg transition-all hover:shadow-sm" title="Excluir"><Trash2 className="w-4 h-4" /></button>
                   )}
                 </div>
               </div>
@@ -628,7 +721,8 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
                 <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-surface-100 rounded-xl transition-colors"><X className="w-6 h-6" /></button>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-8">
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <FormSection title="Cliente, veiculo, responsaveis e status" description="Vincule a O.S. ao veiculo atendido, tecnicos e etapa operacional.">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {!editingOrder && (
                     <div className="space-y-2">
@@ -675,7 +769,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
                   <div className="space-y-2">
                     <label className="micro-label ml-1">Status do Serviço</label>
                     <select 
-                      className="w-full p-4 bg-surface-50 border border-surface-200 rounded-2xl outline-none focus:ring-2 focus:ring-brand-primary font-bold transition-all" 
+                      className={`w-full p-4 border rounded-2xl outline-none focus:ring-2 focus:ring-brand-primary font-bold transition-all ${getOrderStatusMeta(formData.status).selectClass}`}
                       value={formData.status} 
                       onChange={e => setFormData({...formData, status: e.target.value as any})}
                     >
@@ -703,7 +797,9 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
                     </div>
                   </div>
                 </div>
+                </FormSection>
 
+                <FormSection title="Prazos da O.S." description="Controle datas de entrada e previsao ou saida sem alterar o schema atual.">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <label className="micro-label ml-1">Data de Entrada</label>
@@ -724,7 +820,9 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
                     />
                   </div>
                 </div>
+                </FormSection>
 
+                <FormSection title="Queixa e descricao do servico" description="Registre o relato inicial e as observacoes internas da oficina.">
                 <div className="space-y-2">
                   <label className="micro-label ml-1">Descrição do Serviço Principal</label>
                   <input 
@@ -748,6 +846,9 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
                   />
                 </div>
 
+                </FormSection>
+
+                <FormSection title="Vistoria de entrada" description="Registre fotos e checklist do estado do veiculo na chegada.">
                 <MultiImageUpload 
                   label="Vistoria de Entrada (Fotos do Veículo)"
                   values={formData.checkin_images}
@@ -800,7 +901,9 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
                     ))}
                   </div>
                 </div>
+                </FormSection>
 
+                <FormSection title="Diagnostico e testes" description="Use os testes existentes para registrar evidencias tecnicas.">
                 {/* Checklist de Testes */}
                 <div className="space-y-5 bg-surface-50 p-6 rounded-3xl border border-surface-200">
                   <div className="flex justify-between items-center">
@@ -908,7 +1011,9 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
                     )}
                   </div>
                 </div>
+                </FormSection>
 
+                <FormSection title="Itens e valores" description="Pecas aqui sao itens manuais internos da O.S.; nao criam estoque nem produto.">
                 <div className="space-y-5 bg-surface-50 p-6 rounded-3xl border border-surface-200">
                   <div className="flex justify-between items-center">
                     <h3 className="micro-label">Peças e Mão de Obra</h3>
@@ -955,7 +1060,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
                       </select>
                       <button 
                         type="button" 
-                        onClick={() => { if(newItem.description && newItem.price > 0) { setFormData({...formData, items: [...formData.items, newItem]}); setNewItem({description: '', price: 0, quantity: 1, type: 'parts'}); } }} 
+                        onClick={addOrderItem}
                         className="bg-brand-primary text-white p-3 rounded-xl shadow-lg shadow-brand-primary/20 hover:bg-brand-primary/90 transition-all"
                       >
                         <Plus className="w-5 h-5" />
@@ -983,6 +1088,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
                     ))}
                   </div>
                 </div>
+                </FormSection>
 
                 <button 
                   type="submit" 

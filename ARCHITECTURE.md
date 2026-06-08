@@ -22,6 +22,10 @@
 
 Novas chamadas de API devem usar `src/services` e `apiRequest` em vez de `fetch` direto nos componentes. Dashboard, Ordens, AuthContext, Clientes, Veiculos, Notas/Financeiro e Equipe ja foram migrados. Demais pontos legados devem migrar gradualmente para preservar comportamento.
 
+## Ordens De Servico
+
+Ordens de Servico sao o centro operacional do sistema. A fase atual preserva o backend e o schema existentes: status legados `pending`, `in_progress` e `completed`, itens manuais em `order_items`, tecnicos em `order_technicians`, checklist em JSONB e testes em `service_order_tests`. Fluxos profissionais mais granulares devem ser planejados com migration compativel para nao quebrar O.S. antigas, Dashboard, Clientes e Notas.
+
 ## Decisao Arquitetural
 
 O sistema nao deve ser organizado ao redor de produtos, loja ou estoque comercial. A organizacao desejada e por operacao de oficina: atendimento, clientes, veiculos, O.S., diagnostico, agenda, financeiro operacional, equipe, relatorios e configuracoes.
