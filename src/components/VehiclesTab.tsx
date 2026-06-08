@@ -6,8 +6,8 @@ import { toast } from 'sonner';
 import { Vehicle, Client } from '../types';
 import ImageUpload from './ImageUpload';
 import { useAuth } from '../contexts/AuthContext';
-
-const API_URL = '/api';
+import { ApiError } from '../services/api';
+import { clientService, vehicleService } from '../services';
 
 export default function VehiclesTab() {
   const { user } = useAuth();
@@ -52,8 +52,7 @@ export default function VehiclesTab() {
 
   const fetchVehicles = async () => {
     try {
-      const res = await fetch(`${API_URL}/vehicles`, { credentials: 'include' });
-      const data = await res.json();
+      const data = await vehicleService.list();
       if (Array.isArray(data)) {
         setVehicles(data);
       } else {
@@ -70,8 +69,7 @@ export default function VehiclesTab() {
 
   const fetchClients = async () => {
     try {
-      const res = await fetch(`${API_URL}/clients`, { credentials: 'include' });
-      const data = await res.json();
+      const data = await clientService.list();
       if (Array.isArray(data)) {
         setClients(data);
       } else {
@@ -124,9 +122,6 @@ export default function VehiclesTab() {
       return;
     }
 
-    const method = editingVehicle ? 'PUT' : 'POST';
-    const url = editingVehicle ? `${API_URL}/vehicles/${editingVehicle.id}` : `${API_URL}/vehicles`;
-
     const dataToSave = {
       ...formData,
       make: formData.make || 'Veículo',
@@ -134,30 +129,28 @@ export default function VehiclesTab() {
     };
 
     try {
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dataToSave),
-        credentials: 'include'
-      });
-      if (res.ok) {
-        fetchVehicles();
-        setIsModalOpen(false);
-        toast.success(editingVehicle ? 'Veículo atualizado!' : 'Veículo cadastrado!');
+      if (editingVehicle) {
+        await vehicleService.update(editingVehicle.id, dataToSave);
       } else {
-        const error = await res.json();
-        toast.error(error.error || 'Erro ao salvar veículo');
+        await vehicleService.create(dataToSave);
       }
+      fetchVehicles();
+      setIsModalOpen(false);
+      toast.success(editingVehicle ? 'Veículo atualizado!' : 'Veículo cadastrado!');
     } catch (err) { 
       console.error(err);
-      toast.error('Erro de conexão ao salvar veículo');
+      toast.error(err instanceof ApiError ? err.message : 'Erro de conexão ao salvar veículo');
     }
   };
 
   const deleteVehicle = async (id: number) => {
     if (window.confirm('Excluir veículo? Isso removerá também suas ordens.')) {
-      await fetch(`${API_URL}/vehicles/${id}`, { method: 'DELETE', credentials: 'include' });
-      fetchVehicles();
+      try {
+        await vehicleService.remove(id);
+        fetchVehicles();
+      } catch (err) {
+        toast.error(err instanceof ApiError ? err.message : 'Erro ao excluir veículo');
+      }
     }
   };
 

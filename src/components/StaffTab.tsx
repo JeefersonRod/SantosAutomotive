@@ -5,8 +5,8 @@ import { IMaskInput } from 'react-imask';
 import { toast } from 'sonner';
 import { StaffMember } from '../types';
 import { useAuth } from '../contexts/AuthContext';
-
-const API_URL = '/api';
+import { ApiError } from '../services/api';
+import { staffService } from '../services';
 
 const AVAILABLE_ROLES = {
   mechanic: { label: 'Mecânica', color: 'bg-blue-500', text: 'text-blue-500' },
@@ -42,8 +42,7 @@ export default function StaffTab() {
 
   const fetchStaff = async () => {
     try {
-      const res = await fetch(`${API_URL}/staff`, { credentials: 'include' });
-      const data = await res.json();
+      const data = await staffService.list();
       if (Array.isArray(data)) {
         setStaff(data);
       } else {
@@ -60,8 +59,7 @@ export default function StaffTab() {
 
   const fetchRequests = async () => {
     try {
-      const res = await fetch(`${API_URL}/staff-requests`, { credentials: 'include' });
-      const data = await res.json();
+      const data = await staffService.listRequests();
       if (Array.isArray(data)) {
         setRequests(data);
       } else {
@@ -89,35 +87,26 @@ export default function StaffTab() {
     e.preventDefault();
     if (!formData.name || !formData.roles || formData.roles.length === 0) return;
 
-    const method = editingMember ? 'PUT' : 'POST';
-    const url = editingMember ? `${API_URL}/staff/${editingMember.id}` : `${API_URL}/staff`;
-
     try {
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-        credentials: 'include'
-      });
-      if (res.ok) {
-        fetchStaff();
-        setIsModalOpen(false);
-        toast.success(editingMember ? 'Integrante atualizado!' : 'Integrante cadastrado!');
-        
-        // If this was from a request, delete it
-        const requestId = (window as any).pendingRequestId;
-        if (requestId) {
-          await fetch(`${API_URL}/staff-requests/${requestId}`, { method: 'DELETE', credentials: 'include' });
-          fetchRequests();
-          delete (window as any).pendingRequestId;
-        }
+      if (editingMember) {
+        await staffService.update(editingMember.id, formData);
       } else {
-        const errorData = await res.json();
-        toast.error(errorData.error || 'Erro ao salvar integrante');
+        await staffService.create(formData);
+      }
+      fetchStaff();
+      setIsModalOpen(false);
+      toast.success(editingMember ? 'Integrante atualizado!' : 'Integrante cadastrado!');
+
+      // If this was from a request, delete it
+      const requestId = (window as any).pendingRequestId;
+      if (requestId) {
+        await staffService.removeRequest(requestId);
+        fetchRequests();
+        delete (window as any).pendingRequestId;
       }
     } catch (err) {
       console.error(err);
-      toast.error('Erro de conexão ao salvar integrante');
+      toast.error(err instanceof ApiError ? err.message : 'Erro de conexão ao salvar integrante');
     }
   };
 
@@ -130,16 +119,12 @@ export default function StaffTab() {
   const handleDeleteMember = async (id: number) => {
     if (confirm('Deseja realmente remover este integrante?')) {
       try {
-        const res = await fetch(`${API_URL}/staff/${id}`, { method: 'DELETE', credentials: 'include' });
-        if (res.ok) {
-          fetchStaff();
-          toast.success('Integrante removido');
-        } else {
-          toast.error('Erro ao remover integrante');
-        }
+        await staffService.remove(id);
+        fetchStaff();
+        toast.success('Integrante removido');
       } catch (err) {
         console.error(err);
-        toast.error('Erro de conexão');
+        toast.error(err instanceof ApiError ? err.message : 'Erro de conexão');
       }
     }
   };
@@ -160,14 +145,12 @@ export default function StaffTab() {
   const handleRejectRequest = async (id: number) => {
     if (confirm('Deseja recusar esta solicitação?')) {
       try {
-        const res = await fetch(`${API_URL}/staff-requests/${id}`, { method: 'DELETE', credentials: 'include' });
-        if (res.ok) {
-          fetchRequests();
-          toast.success('Solicitação recusada');
-        }
+        await staffService.removeRequest(id);
+        fetchRequests();
+        toast.success('Solicitação recusada');
       } catch (err) {
         console.error(err);
-        toast.error('Erro ao recusar solicitação');
+        toast.error(err instanceof ApiError ? err.message : 'Erro ao recusar solicitação');
       }
     }
   };

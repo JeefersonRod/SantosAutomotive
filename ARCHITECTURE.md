@@ -20,7 +20,7 @@
 
 ## Services
 
-Novas chamadas de API devem usar `src/services` e `apiRequest` em vez de `fetch` direto nos componentes. Dashboard, Ordens e AuthContext ja foram migrados como primeira etapa. Demais telas devem migrar gradualmente para preservar comportamento.
+Novas chamadas de API devem usar `src/services` e `apiRequest` em vez de `fetch` direto nos componentes. Dashboard, Ordens, AuthContext, Clientes, Veiculos, Notas/Financeiro e Equipe ja foram migrados. Demais pontos legados devem migrar gradualmente para preservar comportamento.
 
 ## Decisao Arquitetural
 

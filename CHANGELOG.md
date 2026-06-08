@@ -2,6 +2,8 @@
 
 ## Atual
 
+- Migradas chamadas de API de Clientes, Veiculos, Notas/Financeiro e Equipe para services por dominio.
+- Expandidos `clientService`, `vehicleService`, `financeService` e `staffService`.
 - Migradas chamadas de API de Dashboard, Ordens e AuthContext para services por dominio.
 - Centralizado o uso de `ApiError` para mensagens de erro em fluxos migrados.
 - Aplicado `LoadingState` em Ordens como primeiro uso seguro da base UI.

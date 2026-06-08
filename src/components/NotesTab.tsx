@@ -5,8 +5,8 @@ import { IMaskInput } from 'react-imask';
 import { toast } from 'sonner';
 import { Note, Vehicle, NoteItem } from '../types';
 import { useAuth } from '../contexts/AuthContext';
-
-const API_URL = '/api';
+import { ApiError } from '../services/api';
+import { financeService, vehicleService } from '../services';
 
 export default function NotesTab() {
   const { user } = useAuth();
@@ -44,11 +44,8 @@ export default function NotesTab() {
 
   const fetchNotes = async () => {
     try {
-      const res = await fetch(`${API_URL}/notes`, { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
-        setNotes(data);
-      }
+      const data = await financeService.listNotes();
+      setNotes(data);
     } catch (err) {
       console.error('Failed to fetch notes', err);
     } finally {
@@ -58,11 +55,8 @@ export default function NotesTab() {
 
   const fetchVehicles = async () => {
     try {
-      const res = await fetch(`${API_URL}/vehicles`, { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
-        setVehicles(data);
-      }
+      const data = await vehicleService.list();
+      setVehicles(data);
     } catch (err) {
       console.error('Failed to fetch vehicles', err);
     }
@@ -70,11 +64,8 @@ export default function NotesTab() {
 
   const fetchNoteDetails = async (id: number) => {
     try {
-      const res = await fetch(`${API_URL}/notes/${id}`, { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
-        setViewingNote(data);
-      }
+      const data = await financeService.getNote(id);
+      setViewingNote(data);
     } catch (err) {
       console.error('Failed to fetch note details', err);
     }
@@ -104,51 +95,43 @@ export default function NotesTab() {
       return sum + (itemTotal - discount);
     }, 0);
 
-    const method = editingNote ? 'PUT' : 'POST';
-    const url = editingNote ? `${API_URL}/notes/${editingNote.id}` : `${API_URL}/notes`;
+    const payload = {
+      client_id,
+      vehicle_id,
+      manual_client_name: formData.mode === 'manual' ? formData.manual_client_name : null,
+      manual_vehicle_model: formData.mode === 'manual' ? formData.manual_vehicle_model : null,
+      manual_plate: formData.mode === 'manual' ? formData.manual_plate : null,
+      document_type: formData.document_type,
+      total_amount: total,
+      payment_status: formData.payment_status,
+      paid_amount: formData.paid_amount,
+      items: formData.items
+    };
 
     try {
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          client_id,
-          vehicle_id,
-          manual_client_name: formData.mode === 'manual' ? formData.manual_client_name : null,
-          manual_vehicle_model: formData.mode === 'manual' ? formData.manual_vehicle_model : null,
-          manual_plate: formData.mode === 'manual' ? formData.manual_plate : null,
-          document_type: formData.document_type,
-          total_amount: total,
-          payment_status: formData.payment_status,
-          paid_amount: formData.paid_amount,
-          items: formData.items
-        }),
-        credentials: 'include'
-      });
-
-      if (res.ok) {
-        setIsModalOpen(false);
-        setEditingNote(null);
-        setFormData({ 
-          vehicle_id: '', 
-          manual_client_name: '', 
-          manual_vehicle_model: '', 
-          manual_plate: '', 
-          mode: 'select', 
-          document_type: 'note',
-          payment_status: 'unpaid', 
-          paid_amount: 0, 
-          items: [] 
-        });
-        fetchNotes();
-        toast.success(editingNote ? 'Nota atualizada!' : 'Nota gerada com sucesso!');
+      if (editingNote) {
+        await financeService.updateNote(editingNote.id, payload);
       } else {
-        const errorData = await res.json().catch(() => ({ error: 'Erro desconhecido no servidor' }));
-        toast.error(`Erro ao salvar nota: ${errorData.error || 'Erro desconhecido'}`);
+        await financeService.createNote(payload);
       }
+      setIsModalOpen(false);
+      setEditingNote(null);
+      setFormData({
+        vehicle_id: '',
+        manual_client_name: '',
+        manual_vehicle_model: '',
+        manual_plate: '',
+        mode: 'select',
+        document_type: 'note',
+        payment_status: 'unpaid',
+        paid_amount: 0,
+        items: []
+      });
+      fetchNotes();
+      toast.success(editingNote ? 'Nota atualizada!' : 'Nota gerada com sucesso!');
     } catch (err) {
       console.error('Failed to save note', err);
-      toast.error('Erro de conexão ao salvar nota');
+      toast.error(err instanceof ApiError ? `Erro ao salvar nota: ${err.message}` : 'Erro de conexão ao salvar nota');
     }
   };
 

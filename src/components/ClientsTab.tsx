@@ -7,8 +7,8 @@ import { Client, Vehicle, ServiceOrder } from '../types';
 import ImageUpload from './ImageUpload';
 
 import { useAuth } from '../contexts/AuthContext';
-
-const API_URL = '/api';
+import { ApiError } from '../services/api';
+import { clientService } from '../services';
 
 export default function ClientsTab() {
   const { user } = useAuth();
@@ -48,8 +48,7 @@ export default function ClientsTab() {
 
   const fetchClients = async () => {
     try {
-      const res = await fetch(`${API_URL}/clients`, { credentials: 'include' });
-      const data = await res.json();
+      const data = await clientService.list();
       if (Array.isArray(data)) {
         setClients(data);
       } else {
@@ -66,13 +65,11 @@ export default function ClientsTab() {
 
   const fetchClientDetails = async (clientId: number) => {
     try {
-      const [vehiclesRes, ordersRes] = await Promise.all([
-        fetch(`${API_URL}/clients/${clientId}/vehicles`, { credentials: 'include' }),
-        fetch(`${API_URL}/clients/${clientId}/orders`, { credentials: 'include' })
+      const [vehicles, orders] = await Promise.all([
+        clientService.getVehicles(clientId),
+        clientService.getOrders(clientId)
       ]);
-      const vehicles = await vehiclesRes.json();
-      const orders = await ordersRes.json();
-      
+
       if (Array.isArray(vehicles)) {
         setClientVehicles(vehicles);
       } else {
@@ -178,39 +175,33 @@ export default function ClientsTab() {
         document: documentVal || null
       };
 
-      const method = editingClient ? 'PUT' : 'POST';
-      const url = editingClient ? `${API_URL}/clients/${editingClient.id}` : `${API_URL}/clients`;
-
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dataToSave),
-        credentials: 'include'
-      });
-      
-      if (res.ok) {
-        await fetchClients();
-        if (selectedClient && editingClient && selectedClient.id === editingClient.id) {
-          setSelectedClient({ ...selectedClient, ...dataToSave });
-        }
-        setIsModalOpen(false);
-        toast.success(editingClient ? 'Cliente atualizado com sucesso!' : 'Cliente cadastrado com sucesso!');
+      if (editingClient) {
+        await clientService.update(editingClient.id, dataToSave);
       } else {
-        const errorData = await res.json().catch(() => ({ error: 'Erro desconhecido no servidor' }));
-        toast.error(`Erro ao salvar cliente: ${errorData.error || 'Erro desconhecido'}`);
+        await clientService.create(dataToSave);
       }
+      await fetchClients();
+      if (selectedClient && editingClient && selectedClient.id === editingClient.id) {
+        setSelectedClient({ ...selectedClient, ...dataToSave });
+      }
+      setIsModalOpen(false);
+      toast.success(editingClient ? 'Cliente atualizado com sucesso!' : 'Cliente cadastrado com sucesso!');
     } catch (err) {
       console.error('Submit error:', err);
-      toast.error('Ocorreu um erro inesperado ao tentar salvar o cliente.');
+      toast.error(err instanceof ApiError ? `Erro ao salvar cliente: ${err.message}` : 'Ocorreu um erro inesperado ao tentar salvar o cliente.');
     }
   };
 
   const deleteClient = async (e: React.MouseEvent, id: number) => {
     e.stopPropagation();
     if (window.confirm('Excluir cliente? Isso removerá também seus veículos e ordens.')) {
-      await fetch(`${API_URL}/clients/${id}`, { method: 'DELETE', credentials: 'include' });
-      fetchClients();
-      if (selectedClient?.id === id) setSelectedClient(null);
+      try {
+        await clientService.remove(id);
+        fetchClients();
+        if (selectedClient?.id === id) setSelectedClient(null);
+      } catch (err) {
+        toast.error(err instanceof ApiError ? err.message : 'Erro ao excluir cliente');
+      }
     }
   };
 
