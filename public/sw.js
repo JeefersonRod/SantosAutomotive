@@ -1,4 +1,4 @@
-const CACHE_NAME = 'santos-automotive-v4';
+const CACHE_NAME = 'santos-automotive-v5';
 const ASSETS = [
   '/manifest.json',
   '/logo.jpg'
@@ -17,9 +17,17 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
       Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))
+    ).then(() => self.clients.claim()).then(() =>
+      clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+        clientList.forEach((client) => {
+          client.postMessage({ type: 'SW_UPDATED' });
+          if ('navigate' in client) {
+            client.navigate(client.url);
+          }
+        });
+      })
     )
   );
-  self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
@@ -32,13 +40,12 @@ self.addEventListener('fetch', (event) => {
 
   if (request.mode === 'navigate' || request.headers.get('accept')?.includes('text/html')) {
     event.respondWith(
-      fetch(request).then((networkResponse) => {
-        if (networkResponse.ok) {
-          const responseClone = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', responseClone));
-        }
-        return networkResponse;
-      }).catch(() => caches.match('/index.html'))
+      fetch(request).catch(() =>
+        caches.match('/index.html').then((response) => response || new Response('Offline', {
+          status: 503,
+          headers: { 'Content-Type': 'text/plain' }
+        }))
+      )
     );
     return;
   }

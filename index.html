@@ -33,6 +33,23 @@
             console.log('SW registration failed:', err);
           });
         });
+
+        navigator.serviceWorker.addEventListener('message', (event) => {
+          if (event.data?.type === 'SW_UPDATED' && !sessionStorage.getItem('santos-sw-refresh')) {
+            sessionStorage.setItem('santos-sw-refresh', '1');
+            window.location.reload();
+          }
+        });
+
+        window.setTimeout(() => {
+          const root = document.getElementById('root');
+          if (root && !root.hasChildNodes() && !sessionStorage.getItem('santos-blank-recover')) {
+            sessionStorage.setItem('santos-blank-recover', '1');
+            navigator.serviceWorker.getRegistrations()
+              .then(registrations => Promise.all(registrations.map(reg => reg.update())))
+              .finally(() => window.location.reload());
+          }
+        }, 3000);
       }
     </script>
   </body>

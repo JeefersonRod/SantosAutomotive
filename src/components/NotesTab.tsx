@@ -135,7 +135,7 @@ export default function NotesTab() {
     }
   };
 
-  const openEditModal = (note: Note) => {
+  const fillNoteForm = (note: Note) => {
     setEditingNote(note);
     setFormData({
       vehicle_id: note.vehicle_id?.toString() || '',
@@ -153,6 +153,33 @@ export default function NotesTab() {
         type: i.type,
         discount_percent: i.discount_percent || 0
       })) || []
+    });
+  };
+
+  const openEditModal = async (note: Note) => {
+    try {
+      const noteWithItems = await financeService.getNote(note.id);
+      fillNoteForm(noteWithItems);
+      setViewingNote(null);
+      setIsModalOpen(true);
+    } catch (err) {
+      console.error('Failed to load note for edit', err);
+      toast.error(err instanceof ApiError ? `Erro ao carregar nota: ${err.message}` : 'Erro de conexão ao carregar nota');
+    }
+  };
+
+  const openCreateModal = () => {
+    setEditingNote(null);
+    setFormData({
+      vehicle_id: '',
+      manual_client_name: '',
+      manual_vehicle_model: '',
+      manual_plate: '',
+      mode: 'select',
+      document_type: 'note',
+      payment_status: 'unpaid',
+      paid_amount: 0,
+      items: []
     });
     setIsModalOpen(true);
   };
@@ -270,7 +297,7 @@ export default function NotesTab() {
           <Filter className="w-4 h-4" /> Filtros
         </button>
         <button 
-          onClick={() => setIsModalOpen(true)}
+          onClick={openCreateModal}
           className="bg-brand-primary text-white px-6 py-3 rounded-2xl flex items-center gap-2 font-bold shadow-lg shadow-brand-primary/20 hover:bg-brand-primary/90 transition-all active:scale-95"
         >
           <Plus className="w-5 h-5" /> Nova Nota Manual
