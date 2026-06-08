@@ -712,6 +712,12 @@ apiRouter.use(ensureAdmin);
     return !!data;
   };
 
+  const normalizeOptionalDate = (value: unknown) => {
+    if (typeof value !== 'string') return value || null;
+    const trimmed = value.trim();
+    return trimmed ? trimmed : null;
+  };
+
   apiRouter.get("/orders", requireAuth, requireStaff, async (req, res) => {
     const user = (req.session as any).user;
     
@@ -843,8 +849,8 @@ apiRouter.use(ensureAdmin);
           notes, 
           checklist: checklist || {},
           checkin_images: JSON.stringify(checkin_images || []),
-          entry_date,
-          exit_date,
+          entry_date: normalizeOptionalDate(entry_date),
+          exit_date: normalizeOptionalDate(exit_date),
           is_priority: !!is_priority,
           status: status || 'pending'
         })
@@ -950,7 +956,15 @@ apiRouter.use(ensureAdmin);
       // Get current status to check for changes
       const { data: currentOrder } = await supabase.from("service_orders").select("status").eq("id", orderId).single();
 
-      const updateData: any = { total_amount, notes, status, entry_date, exit_date, is_priority: !!is_priority, checklist: checklist || {} };
+      const updateData: any = {
+        total_amount,
+        notes,
+        status,
+        entry_date: normalizeOptionalDate(entry_date),
+        exit_date: normalizeOptionalDate(exit_date),
+        is_priority: !!is_priority,
+        checklist: checklist || {}
+      };
       if (user.permissions !== 'technician') {
         updateData.vehicle_id = vehicle_id;
         updateData.description = description;
