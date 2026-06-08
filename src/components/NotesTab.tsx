@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, StickyNote, Eye, Printer, ChevronRight, Calendar, User, Car as CarIcon, DollarSign, Plus, Trash2, Package, Hash, Pencil, Share2, X, Filter } from 'lucide-react';
+import { Search, StickyNote, Eye, Printer, ChevronRight, Calendar, User, Car as CarIcon, DollarSign, Plus, Trash2, Pencil, Share2, X, Filter } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { IMaskInput } from 'react-imask';
 import { toast } from 'sonner';
@@ -640,23 +640,21 @@ export default function NotesTab() {
                         <option value="service">Serviço</option>
                       </select>
                     </div>
-                    <div className="sm:col-span-4 relative">
-                      <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
+                    <div className="sm:col-span-4">
                       <input 
                         placeholder="Descrição..."
-                        className="w-full pl-10 pr-4 py-3 bg-white border border-surface-200 rounded-xl outline-none focus:ring-2 focus:ring-brand-primary text-sm font-medium"
+                        className="w-full px-4 py-3 bg-white border border-surface-200 rounded-xl outline-none focus:ring-2 focus:ring-brand-primary text-sm font-medium"
                         value={newItem.description}
                         onChange={e => setNewItem({ ...newItem, description: e.target.value })}
                       />
                     </div>
                     {newItem.type === 'part' && (
-                      <div className="sm:col-span-2 relative">
-                        <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
+                      <div className="sm:col-span-2">
                         <input 
                           type="number"
                           step="0.01"
                           placeholder="Qtd"
-                          className="w-full pl-10 pr-4 py-3 bg-white border border-surface-200 rounded-xl outline-none focus:ring-2 focus:ring-brand-primary text-sm font-bold"
+                          className="w-full px-4 py-3 bg-white border border-surface-200 rounded-xl outline-none focus:ring-2 focus:ring-brand-primary text-sm font-bold"
                           value={newItem.quantity || ''}
                           onChange={e => setNewItem({ ...newItem, quantity: parseFloat(e.target.value) || 0 })}
                         />
@@ -743,11 +741,10 @@ export default function NotesTab() {
               <div className="space-y-6 mb-8">
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-surface-400 uppercase tracking-widest">Porcentagem de Desconto (%)</label>
-                  <div className="relative">
-                    <Hash className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
+                  <div>
                     <input 
                       type="number"
-                      className="w-full pl-12 pr-4 py-4 bg-surface-50 border border-surface-200 rounded-2xl outline-none focus:ring-2 focus:ring-brand-primary font-bold text-lg"
+                      className="w-full px-4 py-4 bg-surface-50 border border-surface-200 rounded-2xl outline-none focus:ring-2 focus:ring-brand-primary font-bold text-lg"
                       placeholder="0"
                       value={discountPercent || ''}
                       onChange={e => setDiscountPercent(parseFloat(e.target.value) || 0)}

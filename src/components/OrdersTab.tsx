@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Trash2, Edit2, CheckCircle2, Clock, AlertCircle, X, Wrench, Package, Car, User, Hash, Camera, Filter, Receipt, ChevronRight, Printer, CheckSquare } from 'lucide-react';
+import { Plus, Search, Trash2, Edit2, CheckCircle2, Clock, AlertCircle, X, Wrench, Car, User, Hash, Camera, Filter, Receipt, ChevronRight, Printer, CheckSquare } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import { ServiceOrder, OrderItem, Vehicle, StaffMember } from '../types';
@@ -1251,21 +1251,19 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
                   </div>
 
                   <div className="flex flex-col sm:flex-row gap-3">
-                    <div className="flex-[3] relative">
-                      <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
+                    <div className="flex-[3]">
                       <input 
                         placeholder="Descrição do item ou serviço..."
-                        className="w-full pl-10 pr-4 py-3 bg-white border border-surface-200 rounded-xl outline-none focus:ring-2 focus:ring-brand-primary text-sm font-medium" 
+                        className="w-full px-4 py-3 bg-white border border-surface-200 rounded-xl outline-none focus:ring-2 focus:ring-brand-primary text-sm font-medium"
                         value={newItem.description} 
                         onChange={e => setNewItem({ ...newItem, description: e.target.value })}
                       />
                     </div>
-                    <div className="flex-1 relative">
-                      <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
+                    <div className="flex-1">
                       <input 
                         type="number" 
                         placeholder="Qtd" 
-                        className="w-full pl-10 pr-4 py-3 bg-white border border-surface-200 rounded-xl outline-none focus:ring-2 focus:ring-brand-primary text-sm font-bold" 
+                        className="w-full px-4 py-3 bg-white border border-surface-200 rounded-xl outline-none focus:ring-2 focus:ring-brand-primary text-sm font-bold"
                         value={newItem.quantity || ''} 
                         onChange={e => setNewItem({...newItem, quantity: parseFloat(e.target.value)})} 
                       />
@@ -1283,8 +1281,8 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
                         value={newItem.type} 
                         onChange={e => setNewItem({...newItem, type: e.target.value as any})}
                       >
-                        <option value="parts">Peca aplicada</option>
-                        <option value="labor">Servico / Mao de obra</option>
+                        <option value="parts">Peca</option>
+                        <option value="labor">Servico</option>
                       </select>
                       <button 
                         type="button" 
@@ -1300,13 +1298,10 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
                     {formData.items.map((item, idx) => (
                       <div key={idx} className="flex justify-between items-center p-3 bg-white rounded-xl border border-surface-200 shadow-sm group">
                         <div className="flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${item.type === 'parts' ? 'bg-indigo-50 text-indigo-600' : 'bg-amber-50 text-amber-600'}`}>
-                            {item.type === 'parts' ? <Package className="w-4 h-4" /> : <Wrench className="w-4 h-4" />}
-                          </div>
                           <div className="flex flex-col">
                             <span className="text-sm font-bold text-surface-800">{item.description}</span>
                             <span className="text-[10px] text-surface-400 font-bold uppercase tracking-widest">
-                              {item.type === 'parts' ? 'Peca aplicada' : 'Servico'} - Qtd: {item.quantity || 1}
+                              {item.type === 'parts' ? 'Peca' : 'Servico'} - Qtd: {item.quantity || 1}
                             </span>
                           </div>
                         </div>
