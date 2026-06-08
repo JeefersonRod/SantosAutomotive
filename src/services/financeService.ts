@@ -14,4 +14,7 @@ export const financeService = {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   }),
+  removeNote: (noteId: number) => apiRequest<{ success?: boolean }>(`/api/notes/${noteId}`, {
+    method: 'DELETE',
+  }),
 };

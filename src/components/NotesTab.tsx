@@ -7,9 +7,11 @@ import { Note, Vehicle, NoteItem } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { ApiError } from '../services/api';
 import { financeService, vehicleService } from '../services';
+import { useLocation } from 'react-router-dom';
 
 export default function NotesTab() {
   const { user } = useAuth();
+  const location = useLocation();
   const [notes, setNotes] = useState<Note[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
@@ -23,6 +25,7 @@ export default function NotesTab() {
   const [discountModalOpen, setDiscountModalOpen] = useState(false);
   const [discountPercent, setDiscountPercent] = useState(0);
   const [selectedItemsForDiscount, setSelectedItemsForDiscount] = useState<number[]>([]);
+  const [handledEditId, setHandledEditId] = useState<number | null>(null);
   
   const [formData, setFormData] = useState({
     vehicle_id: '',
@@ -171,6 +174,35 @@ export default function NotesTab() {
     } catch (err) {
       console.error('Failed to load note for edit', err);
       toast.error(err instanceof ApiError ? `Erro ao carregar nota: ${err.message}` : 'Erro de conexão ao carregar nota');
+    }
+  };
+
+  useEffect(() => {
+    const editId = Number(new URLSearchParams(location.search).get('edit'));
+    if (!editId || handledEditId === editId) return;
+
+    setHandledEditId(editId);
+    openEditModal({ id: editId } as Note);
+  }, [location.search, handledEditId]);
+
+  const deleteNote = async (note: Note) => {
+    const confirmation = window.prompt('Para excluir esta nota, digite exatamente: EU QUERO EXCLUIR');
+    if (confirmation !== 'EU QUERO EXCLUIR') {
+      toast.error('Exclusao cancelada. O texto de confirmacao nao confere.');
+      return;
+    }
+
+    try {
+      await financeService.removeNote(note.id);
+      setViewingNote(null);
+      if (editingNote?.id === note.id) {
+        setEditingNote(null);
+        setIsModalOpen(false);
+      }
+      await fetchNotes();
+      toast.success('Nota excluida');
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Erro de conexao ao excluir nota');
     }
   };
 
@@ -397,6 +429,13 @@ export default function NotesTab() {
                       >
                         <Pencil className="w-4 h-4" />
                       </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); deleteNote(note); }}
+                        className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center text-red-500 hover:bg-red-500 hover:text-white transition-all"
+                        title="Excluir Nota"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                       <div className="w-10 h-10 rounded-xl bg-brand-primary/10 flex items-center justify-center text-brand-primary group-hover:bg-brand-primary group-hover:text-white transition-all">
                         <Eye className="w-5 h-5" />
                       </div>
@@ -422,7 +461,19 @@ export default function NotesTab() {
                 <h2 className="text-2xl font-display font-bold text-surface-900">
                   {editingNote ? `Editar ${formData.document_type === 'note' ? 'Nota' : 'Orçamento'} #${editingNote.id}` : `Nova ${formData.document_type === 'note' ? 'Nota' : 'Orçamento'}`}
                 </h2>
-                <button onClick={() => { setIsModalOpen(false); setEditingNote(null); }} className="p-2 hover:bg-surface-100 rounded-xl transition-colors"><X className="w-6 h-6" /></button>
+                <div className="flex items-center gap-2">
+                  {editingNote && (
+                    <button
+                      type="button"
+                      onClick={() => deleteNote(editingNote)}
+                      className="p-2 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-colors"
+                      title="Excluir Nota"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  )}
+                  <button onClick={() => { setIsModalOpen(false); setEditingNote(null); }} className="p-2 hover:bg-surface-100 rounded-xl transition-colors"><X className="w-6 h-6" /></button>
+                </div>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-6 overflow-y-auto pr-2">
@@ -768,6 +819,14 @@ export default function NotesTab() {
                     <Share2 className="w-5 h-5" />
                     <span className="text-sm font-bold">Compartilhar</span>
                   </button>
+                  <button
+                    onClick={() => deleteNote(viewingNote)}
+                    className="p-2 bg-red-50 hover:bg-red-500 text-red-500 hover:text-white rounded-xl transition-colors flex items-center gap-2"
+                    title="Excluir Nota"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                    <span className="text-sm font-bold">Excluir</span>
+                  </button>
                   <button 
                     onClick={() => setViewingNote(null)}
                     className="p-2 bg-surface-50 hover:bg-surface-100 text-surface-600 rounded-xl transition-colors"
@@ -794,7 +853,6 @@ export default function NotesTab() {
                   <p>DATA: {new Date(viewingNote.created_at).toLocaleDateString('pt-BR')}</p>
                   <p>VEICULO: {viewingNote.vehicle_model}</p>
                   <p>PLACA: {viewingNote.plate}</p>
-                  {viewingNote.order_id && <p>OS: #{viewingNote.order_id}</p>}
                   <p>PROXIMA TROCA DE OLEO E FILTRO: ___________________________________</p>
                   <p>CLIENTE: {viewingNote.client_name}</p>
                 </div>

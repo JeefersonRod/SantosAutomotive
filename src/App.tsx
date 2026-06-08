@@ -52,10 +52,10 @@ function AppContent() {
   const currentRole = user.permissions || 'technician';
   const canAccess = (item: typeof NAV_ITEMS[number]) => item.roles.includes(currentRole);
   const firstAllowedPath = filteredNavItems[0]?.path;
-  const navigateToTab = (tab: string) => {
+  const navigateToTab = (tab: string, options?: { search?: string }) => {
     const target = NAV_ITEMS.find(item => item.id === tab);
     if (target && canAccess(target)) {
-      navigate(target.path);
+      navigate(`${target.path}${options?.search || ''}`);
     }
   };
   const guardedRoute = (id: typeof NAV_ITEMS[number]['id'], element: React.ReactNode) => {

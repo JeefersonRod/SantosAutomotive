@@ -2,6 +2,11 @@
 
 ## Atual
 
+- O.S. prioritarias receberam destaque visual mais forte no card.
+- Impressao de O.S. e Nota deixa de exibir identificadores internos.
+- Cards de O.S. ganharam acoes rapidas para Checklist e Diagnostico/Testes.
+- Botao Abrir Nota passa a abrir o editor da nota vinculada.
+- Exclusao de O.S. e Nota exige confirmacao escrita: `EU QUERO EXCLUIR`.
 - Checklist de entrada da O.S. ajustado para tres estados: presente, ausente e nao verificado.
 - O.S. agora pode gerar/abrir Nota de Servico por acao explicita, reutilizando a nota existente quando houver `order_id`.
 - Itens da O.S. mantem valores internos legados, mas a interface diferencia "Servico" e "Peca aplicada" sem criar estoque/produto.

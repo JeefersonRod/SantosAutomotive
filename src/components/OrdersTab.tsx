@@ -56,7 +56,7 @@ const ORDER_STATUS_OPTIONS: Array<{
 const getOrderStatusMeta = (status: ServiceOrder['status']) =>
   ORDER_STATUS_OPTIONS.find((option) => option.value === status) || ORDER_STATUS_OPTIONS[0];
 
-export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => void }) {
+export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, options?: { search?: string }) => void }) {
   const { user } = useAuth();
   const canLoadStaff = user?.permissions === 'super_admin' || user?.permissions === 'admin';
   const canManageNotes = user?.permissions === 'super_admin' || user?.permissions === 'admin' || user?.permissions === 'attendant';
@@ -70,6 +70,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
   const [priorityFilter, setPriorityFilter] = useState<'all' | 'priority' | 'normal'>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<ServiceOrder | null>(null);
+  const [modalMode, setModalMode] = useState<'full' | 'checklist' | 'tests'>('full');
   
   const [formData, setFormData] = useState({
     vehicle_id: 0,
@@ -169,7 +170,8 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
     }
   };
 
-  const handleOpenModal = async (order?: ServiceOrder) => {
+  const handleOpenModal = async (order?: ServiceOrder, mode: 'full' | 'checklist' | 'tests' = 'full') => {
+    setModalMode(mode);
     if (order) {
       setEditingOrder(order);
       try {
@@ -265,20 +267,24 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
   };
 
   const deleteOrder = async (id: number) => {
-    if (window.confirm('Excluir ordem de serviço?')) {
-      try {
-        await orderService.remove(id);
-        fetchOrders();
-        toast.success('Ordem excluída');
-      } catch (err) {
-        toast.error(err instanceof ApiError ? err.message : 'Erro de conexão');
-      }
+    const confirmation = window.prompt('Para excluir esta O.S., digite exatamente: EU QUERO EXCLUIR');
+    if (confirmation !== 'EU QUERO EXCLUIR') {
+      toast.error('Exclusao cancelada. O texto de confirmacao nao confere.');
+      return;
+    }
+
+    try {
+      await orderService.remove(id);
+      fetchOrders();
+      toast.success('Ordem excluida');
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Erro de conexao');
     }
   };
 
   const generateNoteFromOrder = async (order: ServiceOrder) => {
     if (order.note_id) {
-      onNavigate('notes');
+      onNavigate('notes', { search: `?edit=${order.note_id}` });
       return;
     }
 
@@ -341,7 +347,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
       printWindow.document.write(`
         <html>
           <head>
-            <title>Ordem de Serviço #${order.id}</title>
+            <title>Ordem de Servico</title>
             <style>
               body { font-family: sans-serif; color: #333; line-height: 1.5; padding: 40px; }
               .header { display: flex; justify-content: space-between; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 30px; }
@@ -372,7 +378,6 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
               </div>
               <div class="order-info">
                 <div style="font-size: 24px; font-weight: bold;">ORDEM DE SERVIÇO</div>
-                <div style="font-size: 18px; color: #0066FF;">#${order.id.toString().padStart(4, '0')}</div>
                 ${order.is_priority ? '<span class="priority-badge">Prioridade Máxima</span>' : ''}
               </div>
             </div>
@@ -549,6 +554,21 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
 
     return matchesSearch && matchesStatus && matchesPriority;
   });
+  const isFullModal = modalMode === 'full';
+  const showChecklistModalSection = modalMode === 'full' || modalMode === 'checklist';
+  const showTestsModalSection = modalMode === 'full' || modalMode === 'tests';
+  const modalTitle =
+    modalMode === 'checklist'
+      ? 'Checklist da O.S.'
+      : modalMode === 'tests'
+        ? 'Diagnostico e testes da O.S.'
+        : `${editingOrder ? 'Editar' : 'Nova'} Ordem de Servico`;
+  const modalDescription =
+    modalMode === 'checklist'
+      ? 'Atualize a vistoria de entrada sem abrir a edicao completa.'
+      : modalMode === 'tests'
+        ? 'Atualize diagnosticos e testes sem abrir a edicao completa.'
+        : 'Preencha os dados tecnicos do servico.';
 
   return (
     <div className="space-y-8">
@@ -623,13 +643,13 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
             key={order.id} 
             className={`p-6 rounded-3xl border flex flex-col lg:flex-row justify-between gap-6 transition-all tech-card group ${
               order.is_priority 
-                ? 'bg-brand-primary/5 border-brand-primary shadow-lg shadow-brand-primary/10 ring-1 ring-brand-primary/20' 
+                ? 'bg-red-50 border-red-300 shadow-xl shadow-red-100 ring-2 ring-red-300/70'
                 : 'bg-white border-surface-200 hover:shadow-xl hover:shadow-surface-200/50'
             }`}
           >
             <div className="flex gap-5">
               <div className={`w-16 h-16 rounded-2xl flex items-center justify-center border shadow-inner group-hover:scale-110 transition-transform ${
-                order.is_priority ? 'bg-brand-primary text-white border-brand-primary' : 'bg-surface-50 text-brand-primary border-surface-100'
+                order.is_priority ? 'bg-red-600 text-white border-red-600 shadow-lg shadow-red-200' : 'bg-surface-50 text-brand-primary border-surface-100'
               }`}>
                 <Car className="w-8 h-8" />
               </div>
@@ -638,8 +658,8 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
                   <h3 className="font-display font-bold text-xl text-surface-900 flex items-center gap-2">
                     {order.vehicle_model}
                     {order.is_priority && (
-                      <span className="flex items-center gap-1 px-2 py-0.5 bg-brand-primary text-white text-[9px] font-bold rounded-full uppercase tracking-tighter animate-pulse">
-                        <AlertCircle className="w-3 h-3" /> Prioridade
+                      <span className="flex items-center gap-1.5 px-3 py-1 bg-red-600 text-white text-[10px] font-black rounded-full uppercase tracking-wide shadow-md shadow-red-200 animate-pulse">
+                        <AlertCircle className="w-3.5 h-3.5" /> Prioridade
                       </span>
                     )}
                   </h3>
@@ -661,6 +681,24 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
                     <span className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-500" />Saída: {new Date(order.exit_date).toLocaleDateString('pt-BR')}</span>
                   )}
                   <span className="flex items-center gap-2"><Hash className="w-4 h-4 text-surface-400" />OS #{order.id}</span>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleOpenModal(order, 'checklist')}
+                    className="px-3 py-2 bg-white border border-surface-200 text-surface-700 rounded-xl hover:border-brand-primary hover:text-brand-primary transition-all flex items-center gap-2 text-xs font-bold shadow-sm"
+                  >
+                    <CheckSquare className="w-4 h-4" />
+                    Checklist
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenModal(order, 'tests')}
+                    className="px-3 py-2 bg-white border border-surface-200 text-surface-700 rounded-xl hover:border-brand-primary hover:text-brand-primary transition-all flex items-center gap-2 text-xs font-bold shadow-sm"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    Diagnostico/Testes
+                  </button>
                 </div>
               </div>
             </div>
@@ -742,13 +780,14 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
               
               <div className="flex justify-between items-center mb-8">
                 <div>
-                  <h2 className="text-2xl font-display font-bold text-surface-900">{editingOrder ? 'Editar' : 'Nova'} Ordem de Serviço</h2>
-                  <p className="text-sm text-surface-500 font-medium">Preencha os dados técnicos do serviço.</p>
+                  <h2 className="text-2xl font-display font-bold text-surface-900">{modalTitle}</h2>
+                  <p className="text-sm text-surface-500 font-medium">{modalDescription}</p>
                 </div>
                 <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-surface-100 rounded-xl transition-colors"><X className="w-6 h-6" /></button>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-6">
+                {isFullModal && (
                 <FormSection title="Cliente, veiculo, responsaveis e status" description="Vincule a O.S. ao veiculo atendido, tecnicos e etapa operacional.">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {!editingOrder && (
@@ -825,7 +864,9 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
                   </div>
                 </div>
                 </FormSection>
+                )}
 
+                {isFullModal && (
                 <FormSection title="Prazos da O.S." description="Controle datas de entrada e previsao ou saida sem alterar o schema atual.">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
@@ -848,7 +889,9 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
                   </div>
                 </div>
                 </FormSection>
+                )}
 
+                {isFullModal && (
                 <FormSection title="Queixa e descricao do servico" description="Registre o relato inicial e as observacoes internas da oficina.">
                 <div className="space-y-2">
                   <label className="micro-label ml-1">Descrição do Serviço Principal</label>
@@ -874,7 +917,9 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
                 </div>
 
                 </FormSection>
+                )}
 
+                {showChecklistModalSection && (
                 <FormSection title="Vistoria de entrada" description="Registre fotos e checklist do estado do veiculo na chegada.">
                 <MultiImageUpload 
                   label="Vistoria de Entrada (Fotos do Veículo)"
@@ -928,7 +973,9 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
                   </div>
                 </div>
                 </FormSection>
+                )}
 
+                {showTestsModalSection && (
                 <FormSection title="Diagnostico e testes" description="Use os testes existentes para registrar evidencias tecnicas.">
                 {/* Checklist de Testes */}
                 <div className="space-y-5 bg-surface-50 p-6 rounded-3xl border border-surface-200">
@@ -1038,7 +1085,9 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
                   </div>
                 </div>
                 </FormSection>
+                )}
 
+                {isFullModal && (
                 <FormSection title="Itens e valores" description="Pecas aqui sao itens manuais internos da O.S.; nao criam estoque nem produto.">
                 <div className="space-y-5 bg-surface-50 p-6 rounded-3xl border border-surface-200">
                   <div className="flex justify-between items-center">
@@ -1117,12 +1166,13 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
                   </div>
                 </div>
                 </FormSection>
+                )}
 
                 <button 
                   type="submit" 
                   className="w-full py-4 bg-brand-primary text-white rounded-2xl font-bold text-lg shadow-xl shadow-brand-primary/20 hover:bg-brand-primary/90 transition-all active:scale-[0.99]"
                 >
-                  Salvar Ordem de Serviço
+                  {modalMode === 'full' ? 'Salvar Ordem de Servico' : 'Salvar acao rapida'}
                 </button>
               </form>
             </motion.div>
