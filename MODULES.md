@@ -27,6 +27,8 @@ A aba Produtos foi removida da navegacao principal. Itens de pecas continuam per
 
 A O.S. atual usa estrutura existente sem estoque comercial: cliente e veiculo via `vehicle_id`, responsaveis via `order_technicians`, itens manuais via `order_items`, checklist de entrada em JSONB com tres estados, testes tecnicos em `service_order_tests` e nota operacional gerada a partir da O.S. quando solicitada. Servicos e pecas aplicadas sao categorias internas da O.S./nota, nao catalogo comercial. Status profissionais futuros devem manter compatibilidade com `pending`, `in_progress` e `completed`.
 
+Impressao de O.S. e Nota e tratada como apresentacao frontend: documentos A4 profissionais com dados ja existentes, sem criar estoque, loja, fornecedores, compras ou regra fiscal nova.
+
 ## Atendimento
 
 A tela Atendimento guia a recepcao em quatro etapas: cliente, veiculo, queixa e revisao. Ela nao cria modulo comercial novo; apenas reduz atrito para buscar/cadastrar cliente, buscar/cadastrar veiculo e abrir O.S. pendente com dados minimos.

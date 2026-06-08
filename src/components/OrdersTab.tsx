@@ -8,7 +8,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { ApiError } from '../services/api';
 import { orderService, staffService, vehicleService } from '../services';
 import { FormSection, LoadingState } from './ui';
-import { CHECKLIST_ITEMS, CHECKLIST_STATUS_OPTIONS, createDefaultChecklist, getChecklistStatusMeta, normalizeChecklist } from '../utils/checklist';
+import { CHECKLIST_ITEMS, CHECKLIST_STATUS_OPTIONS, createDefaultChecklist, normalizeChecklist } from '../utils/checklist';
+import ServiceOrderPrintView from './print/ServiceOrderPrintView';
 
 const PREDEFINED_COMPONENTS = [
   "Sensor de Pressão do Rail",
@@ -71,6 +72,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<ServiceOrder | null>(null);
   const [modalMode, setModalMode] = useState<'full' | 'checklist' | 'tests'>('full');
+  const [printOrder, setPrintOrder] = useState<ServiceOrder | null>(null);
   
   const [formData, setFormData] = useState({
     vehicle_id: 0,
@@ -300,196 +302,34 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
     }
   };
 
-  const buildChecklistPrintHtml = (checklist?: Record<string, any>) => {
-    const normalized = normalizeChecklist(checklist);
-    const itemsHtml = CHECKLIST_ITEMS.map((item) => {
-      const meta = getChecklistStatusMeta(normalized[item.key]);
-      return `<div class="checklist-item"><strong>${item.label}:</strong> ${meta.printMark}</div>`;
-    }).join('');
-
-    return `
-      <div class="section">
-        <div class="section-title">Vistoria de Entrada</div>
-        <div class="grid-3">
-          <div class="checklist-item"><strong>Combustivel:</strong> ${normalized.fuel_level === 'not_checked' ? 'Nao verificado' : normalized.fuel_level}</div>
-          ${itemsHtml}
-        </div>
-      </div>
-    `;
+  const cleanupPrintMode = () => {
+    document.body.classList.remove('printing-document');
+    setPrintOrder(null);
+    window.removeEventListener('afterprint', cleanupPrintMode);
   };
 
-  const handlePrintOrder = async (orderId: number) => {
+  const handlePrintOrder = async (orderSummary: ServiceOrder) => {
     try {
-      const order = await orderService.get(orderId);
-      const checklistPrintHtml = buildChecklistPrintHtml(order.checklist);
-      order.checklist = null as any;
-      
-      const printWindow = window.open('', '_blank');
-      if (!printWindow) return;
+      const orderDetails = await orderService.get(orderSummary.id);
+      const printableOrder: ServiceOrder = {
+        ...orderSummary,
+        ...orderDetails,
+        vehicle_model: orderDetails.vehicle_model || orderSummary.vehicle_model,
+        plate: orderDetails.plate || orderSummary.plate,
+        customer_name: orderDetails.customer_name || orderSummary.customer_name,
+        customer_phone: orderDetails.customer_phone || orderSummary.customer_phone,
+        technician_names: orderDetails.technician_names || orderSummary.technician_names,
+        note_id: orderDetails.note_id || orderSummary.note_id,
+        checkin_images: safeParseImages(orderDetails.checkin_images)
+      };
 
-      const itemsHtml = (order.items || []).map((item: any) => `
-        <tr>
-          <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.description}</td>
-          <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity || 1}</td>
-          <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">R$ ${(item.price || 0).toFixed(2)}</td>
-          <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">R$ ${((item.price || 0) * (item.quantity || 1)).toFixed(2)}</td>
-        </tr>
-      `).join('');
-
-      const testsHtml = (order.tests || []).map((test: any) => `
-        <div style="margin-bottom: 10px; padding: 10px; border: 1px solid #eee; border-radius: 8px;">
-          <div style="font-weight: bold; color: #333;">${test.component_name}</div>
-          <div style="font-size: 14px; color: #666;">Resultado: <span style="color: ${test.result === 'OK' ? '#10b981' : '#ef4444'}">${test.result}</span></div>
-          ${test.notes ? `<div style="font-size: 12px; color: #999; margin-top: 4px;">Obs: ${test.notes}</div>` : ''}
-        </div>
-      `).join('');
-
-      printWindow.document.write(`
-        <html>
-          <head>
-            <title>Ordem de Servico</title>
-            <style>
-              body { font-family: sans-serif; color: #333; line-height: 1.5; padding: 40px; }
-              .header { display: flex; justify-content: space-between; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 30px; }
-              .logo-area { display: flex; align-items: center; gap: 15px; }
-              .logo-box { background: #000; color: #fff; padding: 10px; border-radius: 8px; font-weight: bold; }
-              .order-info { text-align: right; }
-              .section { margin-bottom: 30px; }
-              .section-title { font-weight: bold; text-transform: uppercase; font-size: 12px; color: #666; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
-              .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-              .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
-              table { width: 100%; border-collapse: collapse; }
-              th { text-align: left; padding: 8px; background: #f9f9f9; font-size: 12px; text-transform: uppercase; color: #666; }
-              .footer { margin-top: 50px; border-top: 1px solid #eee; pt: 20px; text-align: center; font-size: 12px; color: #999; }
-              .priority-badge { background: #ef4444; color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; text-transform: uppercase; }
-              .checklist-item { font-size: 11px; display: flex; align-items: center; gap: 5px; margin-bottom: 4px; }
-              .check-box { width: 10px; height: 10px; border: 1px solid #333; display: inline-block; }
-              .check-box.checked { background: #333; }
-            </style>
-          </head>
-          <body>
-            <div class="header">
-              <div class="logo-area">
-                <div class="logo-box">SANTOS AUTO</div>
-                <div>
-                  <div style="font-size: 20px; font-weight: bold;">Santos Auto Tech Manager</div>
-                  <div style="font-size: 12px; color: #666;">Soluções Automotivas de Alta Performance</div>
-                </div>
-              </div>
-              <div class="order-info">
-                <div style="font-size: 24px; font-weight: bold;">ORDEM DE SERVIÇO</div>
-                ${order.is_priority ? '<span class="priority-badge">Prioridade Máxima</span>' : ''}
-              </div>
-            </div>
-
-            <div class="section">
-              <div class="grid">
-                <div>
-                  <div class="section-title">Cliente</div>
-                  <div style="font-size: 16px; font-weight: bold;">${order.customer_name || 'N/I'}</div>
-                  <div style="font-size: 14px; color: #666;">Tel: ${order.customer_phone || 'N/I'}</div>
-                </div>
-                <div>
-                  <div class="section-title">Veículo</div>
-                  <div style="font-size: 16px; font-weight: bold;">${order.vehicle_model || 'N/I'}</div>
-                  <div style="font-size: 14px; color: #666;">Placa: ${order.plate || 'N/I'}</div>
-                </div>
-              </div>
-            </div>
-
-            <div class="section">
-              <div class="section-title">Datas e Responsáveis</div>
-              <div class="grid">
-                <div>
-                  <div style="font-size: 14px;"><strong>Entrada:</strong> ${new Date(order.entry_date).toLocaleDateString('pt-BR')}</div>
-                  <div style="font-size: 14px;"><strong>Status:</strong> ${order.status === 'pending' ? 'Pendente' : order.status === 'in_progress' ? 'Em Execução' : 'Concluída'}</div>
-                </div>
-                <div>
-                  <div style="font-size: 14px;"><strong>Técnicos:</strong> ${order.technician_names?.join(', ') || 'Nenhum atribuído'}</div>
-                </div>
-              </div>
-            </div>
-
-            ${checklistPrintHtml}
-
-            ${order.checklist ? `
-              <div class="section">
-                <div class="section-title">Vistoria de Entrada</div>
-                <div class="grid-3">
-                  <div class="checklist-item"><strong>Combustível:</strong> ${order.checklist.fuel_level || 'N/I'}</div>
-                  <div class="checklist-item"><div class="check-box ${order.checklist.scratches ? 'checked' : ''}"></div> Avarias/Riscos</div>
-                  <div class="checklist-item"><div class="check-box ${order.checklist.spare_tire ? 'checked' : ''}"></div> Estepe</div>
-                  <div class="checklist-item"><div class="check-box ${order.checklist.triangle ? 'checked' : ''}"></div> Triângulo</div>
-                  <div class="checklist-item"><div class="check-box ${order.checklist.jack ? 'checked' : ''}"></div> Macaco</div>
-                  <div class="checklist-item"><div class="check-box ${order.checklist.documents ? 'checked' : ''}"></div> Documentos</div>
-                </div>
-              </div>
-            ` : ''}
-
-            <div class="section">
-              <div class="section-title">Descrição do Problema / Solicitação</div>
-              <div style="font-size: 14px; padding: 15px; background: #fdfdfd; border: 1px solid #eee; border-radius: 8px;">
-                ${order.description || 'Nenhuma descrição fornecida.'}
-              </div>
-            </div>
-
-            ${order.tests && order.tests.length > 0 ? `
-              <div class="section">
-                <div class="section-title">Testes e Diagnósticos</div>
-                <div class="grid">
-                  ${testsHtml}
-                </div>
-              </div>
-            ` : ''}
-
-            <div class="section">
-              <div class="section-title">Peças e Serviços</div>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Descrição</th>
-                    <th style="text-align: center;">Qtd</th>
-                    <th style="text-align: right;">Unitário</th>
-                    <th style="text-align: right;">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${itemsHtml || '<tr><td colspan="4" style="text-align: center; padding: 20px; color: #999;">Nenhum item adicionado</td></tr>'}
-                </tbody>
-                <tfoot>
-                  <tr>
-                    <td colspan="3" style="text-align: right; padding: 15px 8px; font-weight: bold; font-size: 18px;">TOTAL:</td>
-                    <td style="text-align: right; padding: 15px 8px; font-weight: bold; font-size: 18px; color: #0066FF;">R$ ${(order.total_amount || 0).toFixed(2)}</td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-
-            ${order.notes ? `
-              <div class="section">
-                <div class="section-title">Observações Internas</div>
-                <div style="font-size: 12px; color: #666; font-style: italic;">
-                  ${order.notes}
-                </div>
-              </div>
-            ` : ''}
-
-            <div class="footer">
-              <p>Santos Auto Tech Manager - Sistema de Gestão de Oficinas</p>
-              <p>Documento gerado em ${new Date().toLocaleString('pt-BR')}</p>
-            </div>
-
-            <script>
-              window.onload = () => {
-                window.print();
-                // window.close();
-              };
-            </script>
-          </body>
-        </html>
-      `);
-      printWindow.document.close();
+      setPrintOrder(printableOrder);
+      document.body.classList.add('printing-document');
+      window.addEventListener('afterprint', cleanupPrintMode);
+      window.setTimeout(() => window.print(), 80);
+      window.setTimeout(cleanupPrintMode, 3000);
     } catch (err) {
+      document.body.classList.remove('printing-document');
       console.error('Erro ao imprimir OS:', err);
       toast.error(err instanceof ApiError ? err.message : 'Erro ao imprimir OS');
     }
@@ -571,7 +411,13 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
         : 'Preencha os dados tecnicos do servico.';
 
   return (
-    <div className="space-y-8">
+    <>
+      {printOrder && (
+        <div className="print-document-root">
+          <ServiceOrderPrintView order={printOrder} />
+        </div>
+      )}
+      <div className="space-y-8 print-scope-hidden">
       {/* Search and Filter Bar */}
       <div className="flex flex-col md:flex-row justify-between gap-4">
         <div className="relative flex-1 group">
@@ -755,7 +601,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
                 )}
                 
                 <div className="flex gap-1 bg-surface-50 p-1 rounded-xl border border-surface-200">
-                  <button onClick={() => handlePrintOrder(order.id)} className="p-2 bg-white text-brand-primary hover:bg-brand-primary hover:text-white rounded-lg transition-all hover:shadow-sm" title="Imprimir OS"><Printer className="w-4 h-4" /></button>
+                  <button onClick={() => handlePrintOrder(order)} className="p-2 bg-white text-brand-primary hover:bg-brand-primary hover:text-white rounded-lg transition-all hover:shadow-sm" title="Imprimir OS"><Printer className="w-4 h-4" /></button>
                   <button onClick={() => handleOpenModal(order)} className="p-2 bg-white text-brand-primary hover:bg-brand-primary hover:text-white rounded-lg transition-all hover:shadow-sm" title="Editar"><Edit2 className="w-4 h-4" /></button>
                   {user?.permissions !== 'technician' && (
                     <button onClick={() => deleteOrder(order.id)} className="p-2 bg-white text-brand-accent hover:bg-brand-accent hover:text-white rounded-lg transition-all hover:shadow-sm" title="Excluir"><Trash2 className="w-4 h-4" /></button>
@@ -1179,6 +1025,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
           </div>
         )}
       </AnimatePresence>
-    </div>
+      </div>
+    </>
   );
 }

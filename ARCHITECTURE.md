@@ -28,6 +28,10 @@ Ordens de Servico sao o centro operacional do sistema. A fase atual preserva o s
 
 Notas de Servico podem ser geradas a partir da O.S. pelo endpoint `POST /api/orders/:id/note`, que reutiliza `notes.order_id`, `note_items` e evita duplicar nota quando uma ja existe para a mesma O.S. Itens de `order_items` continuam com valores internos legados (`labor`, `parts`) e sao mapeados para `service` e `part` em `note_items`. Fluxos profissionais mais granulares devem ser planejados com migration compativel para nao quebrar O.S. antigas, Dashboard, Clientes e Notas.
 
+## Impressao
+
+Documentos de O.S. e Nota usam componentes React dedicados em `src/components/print`, acionados por estado local das telas. A impressao usa CSS A4 em `src/index.css`, escondendo a interface operacional apenas durante `body.printing-document`. Essa camada nao altera backend, banco, RBAC, endpoints ou regras de negocio.
+
 ## Atendimento
 
 Atendimento/Recepcao e uma camada frontend integrada a Clientes, Veiculos e Ordens. A fase atual reutiliza `clientService`, `vehicleService` e `orderService`, salva a queixa inicial em `service_orders.description`, observacoes em `service_orders.notes` e abre O.S. com status legado `pending`. Nao ha backend, schema ou RBAC novo nesta fase.

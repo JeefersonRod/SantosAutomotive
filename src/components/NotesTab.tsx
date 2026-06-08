@@ -8,6 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { ApiError } from '../services/api';
 import { financeService, vehicleService } from '../services';
 import { useLocation } from 'react-router-dom';
+import ServiceNotePrintView from './print/ServiceNotePrintView';
 
 export default function NotesTab() {
   const { user } = useAuth();
@@ -261,11 +262,18 @@ export default function NotesTab() {
     return matchesSearch && matchesDocument && matchesPayment;
   });
 
+  const cleanupPrintMode = () => {
+    document.body.classList.remove('printing-document');
+    window.removeEventListener('afterprint', cleanupPrintMode);
+  };
+
   const handlePrint = () => {
-    // Small delay to ensure any layout shifts are settled
+    document.body.classList.add('printing-document');
+    window.addEventListener('afterprint', cleanupPrintMode);
     setTimeout(() => {
       window.print();
     }, 100);
+    window.setTimeout(cleanupPrintMode, 3000);
   };
 
   const handleShare = async () => {
@@ -310,7 +318,13 @@ export default function NotesTab() {
     (viewingParts.length > 0 ? 1 : 0);
 
   return (
-    <div className="space-y-6">
+    <>
+      {viewingNote && (
+        <div className="print-document-root">
+          <ServiceNotePrintView note={viewingNote} />
+        </div>
+      )}
+      <div className="space-y-6 print-scope-hidden">
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 print:hidden">
         <div className="relative group flex-1">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-400 group-focus-within:text-brand-primary transition-colors" />
@@ -956,6 +970,7 @@ export default function NotesTab() {
           </div>
         )}
       </AnimatePresence>
-    </div>
+      </div>
+    </>
   );
 }

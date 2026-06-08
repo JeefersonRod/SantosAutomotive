@@ -2,8 +2,10 @@
 
 ## Atual
 
+- Impressao de O.S. e Nota migrada para componentes React dedicados, com layout profissional A4 e sem `document.write`.
+- O.S. impressa agora exibe numero da ordem, prioridade, dados do cliente/veiculo, checklist, diagnostico/testes, servicos, pecas aplicadas, totais e assinaturas.
+- Nota impressa agora exibe numero da nota, vinculo com O.S. quando existir, cliente/veiculo, servicos, pecas aplicadas, descontos, totais, status de pagamento e assinaturas.
 - O.S. prioritarias receberam destaque visual mais forte no card.
-- Impressao de O.S. e Nota deixa de exibir identificadores internos.
 - Cards de O.S. ganharam acoes rapidas para Checklist e Diagnostico/Testes.
 - Botao Abrir Nota passa a abrir o editor da nota vinculada.
 - Exclusao de O.S. e Nota exige confirmacao escrita: `EU QUERO EXCLUIR`.
