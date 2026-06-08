@@ -8,6 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { ApiError } from '../services/api';
 import { orderService, staffService, vehicleService } from '../services';
 import { FormSection, LoadingState } from './ui';
+import { CHECKLIST_ITEMS, CHECKLIST_STATUS_OPTIONS, createDefaultChecklist, getChecklistStatusMeta, normalizeChecklist } from '../utils/checklist';
 
 const PREDEFINED_COMPONENTS = [
   "Sensor de Pressão do Rail",
@@ -17,16 +18,6 @@ const PREDEFINED_COMPONENTS = [
   "Sensor de Temperatura da Água",
   "Sensor de Temperatura do Ar"
 ];
-
-const createDefaultChecklist = () => ({
-  fuel_level: '1/4',
-  scratches: false,
-  spare_tire: true,
-  triangle: true,
-  jack: true,
-  documents: true,
-  personal_items: false
-});
 
 const ORDER_STATUS_OPTIONS: Array<{
   value: ServiceOrder['status'];
@@ -68,6 +59,7 @@ const getOrderStatusMeta = (status: ServiceOrder['status']) =>
 export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => void }) {
   const { user } = useAuth();
   const canLoadStaff = user?.permissions === 'super_admin' || user?.permissions === 'admin';
+  const canManageNotes = user?.permissions === 'super_admin' || user?.permissions === 'admin' || user?.permissions === 'attendant';
   const [orders, setOrders] = useState<ServiceOrder[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [staff, setStaff] = useState<StaffMember[]>([]);
@@ -188,7 +180,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
           description: data.description || '',
           status: data.status,
           notes: data.notes || '',
-          checklist: data.checklist || createDefaultChecklist(),
+          checklist: normalizeChecklist(data.checklist),
           items: data.items || [],
           checkin_images: safeParseImages(data.checkin_images),
           tests: data.tests || [],
@@ -284,9 +276,47 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
     }
   };
 
+  const generateNoteFromOrder = async (order: ServiceOrder) => {
+    if (order.note_id) {
+      onNavigate('notes');
+      return;
+    }
+
+    if (!window.confirm(`Gerar Nota de Servico da OS #${order.id}?`)) return;
+
+    try {
+      await orderService.generateNote(order.id);
+      await fetchOrders();
+      toast.success('Nota de servico gerada a partir da O.S.');
+      onNavigate('notes');
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Erro ao gerar nota da O.S.');
+    }
+  };
+
+  const buildChecklistPrintHtml = (checklist?: Record<string, any>) => {
+    const normalized = normalizeChecklist(checklist);
+    const itemsHtml = CHECKLIST_ITEMS.map((item) => {
+      const meta = getChecklistStatusMeta(normalized[item.key]);
+      return `<div class="checklist-item"><strong>${item.label}:</strong> ${meta.printMark}</div>`;
+    }).join('');
+
+    return `
+      <div class="section">
+        <div class="section-title">Vistoria de Entrada</div>
+        <div class="grid-3">
+          <div class="checklist-item"><strong>Combustivel:</strong> ${normalized.fuel_level === 'not_checked' ? 'Nao verificado' : normalized.fuel_level}</div>
+          ${itemsHtml}
+        </div>
+      </div>
+    `;
+  };
+
   const handlePrintOrder = async (orderId: number) => {
     try {
       const order = await orderService.get(orderId);
+      const checklistPrintHtml = buildChecklistPrintHtml(order.checklist);
+      order.checklist = null as any;
       
       const printWindow = window.open('', '_blank');
       if (!printWindow) return;
@@ -374,6 +404,8 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
                 </div>
               </div>
             </div>
+
+            ${checklistPrintHtml}
 
             ${order.checklist ? `
               <div class="section">
@@ -673,14 +705,14 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
                   <ChevronRight className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 rotate-90 pointer-events-none opacity-50" />
                 </div>
                 
-                {order.status === 'completed' && (
+                {canManageNotes && (
                   <button 
-                    onClick={() => onNavigate('notes')}
+                    onClick={() => generateNoteFromOrder(order)}
                     className="p-2.5 bg-brand-primary/10 text-brand-primary rounded-xl hover:bg-brand-primary/20 transition-all flex items-center gap-2 font-bold text-xs"
-                    title="Ver Nota de Serviço"
+                    title={order.note_id ? 'Abrir nota da O.S.' : 'Gerar nota da O.S.'}
                   >
                     <Receipt className="w-4 h-4" />
-                    <span>Ver Nota</span>
+                    <span>{order.note_id ? 'Abrir Nota' : 'Gerar Nota'}</span>
                   </button>
                 )}
                 
@@ -864,6 +896,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
                         value={formData.checklist.fuel_level}
                         onChange={e => setFormData({...formData, checklist: {...formData.checklist, fuel_level: e.target.value}})}
                       >
+                        <option value="not_checked">Nao verificado</option>
                         <option value="Reserva">Reserva</option>
                         <option value="1/4">1/4</option>
                         <option value="1/2">1/2</option>
@@ -871,27 +904,25 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
                         <option value="Cheio">Cheio</option>
                       </select>
                     </div>
-                    {[
-                      { key: 'scratches', label: 'Avarias/Riscos' },
-                      { key: 'spare_tire', label: 'Estepe' },
-                      { key: 'triangle', label: 'Triângulo' },
-                      { key: 'jack', label: 'Macaco' },
-                      { key: 'documents', label: 'Documentos' },
-                      { key: 'personal_items', label: 'Itens Pessoais' }
-                    ].map(item => (
+                    {CHECKLIST_ITEMS.map(item => (
                       <div key={item.key} className="flex flex-col gap-1">
                         <label className="text-[10px] font-bold text-surface-400 uppercase">{item.label}</label>
-                        <button
-                          type="button"
-                          onClick={() => setFormData({...formData, checklist: {...formData.checklist, [item.key]: !formData.checklist[item.key]}})}
-                          className={`px-3 py-2 rounded-xl text-[10px] font-bold border transition-all ${
-                            formData.checklist[item.key] 
-                              ? 'bg-emerald-50 border-emerald-200 text-emerald-600' 
-                              : 'bg-white border-surface-200 text-surface-400'
-                          }`}
-                        >
-                          {formData.checklist[item.key] ? 'PRESENTE/OK' : 'AUSENTE/NÃO'}
-                        </button>
+                        <div className="grid grid-cols-1 gap-1">
+                          {CHECKLIST_STATUS_OPTIONS.map((option) => (
+                            <button
+                              key={option.value}
+                              type="button"
+                              onClick={() => setFormData({...formData, checklist: {...formData.checklist, [item.key]: option.value}})}
+                              className={`px-3 py-2 rounded-xl text-[10px] font-bold border transition-all ${
+                                formData.checklist[item.key] === option.value
+                                  ? option.className
+                                  : 'bg-white border-surface-200 text-surface-400'
+                              }`}
+                            >
+                              {option.shortLabel}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -1050,8 +1081,8 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
                         value={newItem.type} 
                         onChange={e => setNewItem({...newItem, type: e.target.value as any})}
                       >
-                        <option value="parts">Peça</option>
-                        <option value="labor">Mão de Obra</option>
+                        <option value="parts">Peca aplicada</option>
+                        <option value="labor">Servico / Mao de obra</option>
                       </select>
                       <button 
                         type="button" 
@@ -1072,7 +1103,9 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
                           </div>
                           <div className="flex flex-col">
                             <span className="text-sm font-bold text-surface-800">{item.description}</span>
-                            <span className="text-[10px] text-surface-400 font-bold uppercase tracking-widest">Qtd: {item.quantity || 1}</span>
+                            <span className="text-[10px] text-surface-400 font-bold uppercase tracking-widest">
+                              {item.type === 'parts' ? 'Peca aplicada' : 'Servico'} - Qtd: {item.quantity || 1}
+                            </span>
                           </div>
                         </div>
                         <div className="flex gap-4 items-center">

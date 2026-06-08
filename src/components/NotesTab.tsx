@@ -71,6 +71,16 @@ export default function NotesTab() {
     }
   };
 
+  const getItemPrice = (item: Pick<NoteItem, 'price'>) => Number(item.price || 0);
+  const getItemQuantity = (item: Pick<NoteItem, 'quantity' | 'type'>) =>
+    item.type === 'service' ? 1 : Number(item.quantity || 1);
+  const getItemSubtotal = (item: Pick<NoteItem, 'price' | 'quantity' | 'type' | 'discount_percent'>) => {
+    const itemTotal = getItemPrice(item) * getItemQuantity(item);
+    const discount = item.discount_percent ? itemTotal * (Number(item.discount_percent) / 100) : 0;
+    return itemTotal - discount;
+  };
+  const formatMoneyValue = (value: unknown) => Number(value || 0).toFixed(2);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.mode === 'select' && !formData.vehicle_id) return toast.error('Selecione um veículo');
@@ -89,11 +99,7 @@ export default function NotesTab() {
       vehicle_id = selectedVehicle.id;
     }
 
-    const total = formData.items.reduce((sum, item) => {
-      const itemTotal = item.price * item.quantity;
-      const discount = item.discount_percent ? (itemTotal * (item.discount_percent / 100)) : 0;
-      return sum + (itemTotal - discount);
-    }, 0);
+    const total = formData.items.reduce((sum, item) => sum + getItemSubtotal(item), 0);
 
     const payload = {
       client_id,
@@ -238,7 +244,7 @@ export default function NotesTab() {
       try {
         await navigator.share({
           title: `${viewingNote.document_type === 'budget' ? 'Orçamento' : 'Nota de Serviço'} #${viewingNote.id}`,
-          text: `Confira o ${viewingNote.document_type === 'budget' ? 'orçamento' : 'nota de serviço'} da Santos Automotive para o veículo ${viewingNote.vehicle_model} (${viewingNote.plate}). Total: R$ ${viewingNote.total_amount.toFixed(2)}`,
+          text: `Confira o ${viewingNote.document_type === 'budget' ? 'orçamento' : 'nota de serviço'} da Santos Automotive para o veículo ${viewingNote.vehicle_model} (${viewingNote.plate}). Total: R$ ${formatMoneyValue(viewingNote.total_amount)}`,
           url: window.location.href
         });
         return;
@@ -255,22 +261,21 @@ export default function NotesTab() {
     handlePrint();
   };
 
-  const calculateTotals = (items: any[]) => {
-    const services = items.filter(i => i.type === 'service').reduce((sum, i) => {
-      const itemTotal = i.price * i.quantity;
-      const discount = i.discount_percent ? (itemTotal * (i.discount_percent / 100)) : 0;
-      return sum + (itemTotal - discount);
-    }, 0);
-    const parts = items.filter(i => i.type === 'part').reduce((sum, i) => {
-      const itemTotal = i.price * i.quantity;
-      const discount = i.discount_percent ? (itemTotal * (i.discount_percent / 100)) : 0;
-      return sum + (itemTotal - discount);
-    }, 0);
+  const calculateTotals = (items: Array<Pick<NoteItem, 'price' | 'quantity' | 'type' | 'discount_percent'>>) => {
+    const services = items.filter(i => i.type === 'service').reduce((sum, i) => sum + getItemSubtotal(i), 0);
+    const parts = items.filter(i => i.type === 'part').reduce((sum, i) => sum + getItemSubtotal(i), 0);
     return { services, parts, total: services + parts };
   };
 
   const currentTotals = calculateTotals(formData.items);
   const viewingTotals = viewingNote ? calculateTotals(viewingNote.items || []) : { services: 0, parts: 0, total: 0 };
+  const viewingItems = viewingNote?.items || [];
+  const viewingServices = viewingItems.filter(item => item.type === 'service');
+  const viewingParts = viewingItems.filter(item => item.type === 'part');
+  const filledRowsCount =
+    viewingItems.length +
+    (viewingServices.length > 0 ? 1 : 0) +
+    (viewingParts.length > 0 ? 1 : 0);
 
   return (
     <div className="space-y-6">
@@ -631,11 +636,11 @@ export default function NotesTab() {
                           <div className="flex gap-4 items-center">
                             <div className="flex flex-col items-end">
                               <span className={`font-bold ${item.discount_percent ? 'text-surface-400 line-through text-xs' : 'text-surface-900'}`}>
-                                {item.price > 0 ? `R$ ${(item.price * item.quantity).toFixed(2)}` : 'A definir'}
+                                {getItemPrice(item) > 0 ? `R$ ${formatMoneyValue(getItemPrice(item) * getItemQuantity(item))}` : 'A definir'}
                               </span>
                               {item.discount_percent ? (
                                 <span className="font-bold text-brand-primary">
-                                  R$ {((item.price * item.quantity) * (1 - item.discount_percent / 100)).toFixed(2)}
+                                  R$ {formatMoneyValue(getItemSubtotal(item))}
                                 </span>
                               ) : null}
                             </div>
@@ -708,7 +713,7 @@ export default function NotesTab() {
                             <span className="text-[10px] text-surface-400 font-bold uppercase tracking-widest">{item.type === 'service' ? 'Serviço' : 'Peça'}</span>
                           </div>
                         </div>
-                        <span className="text-sm font-bold text-surface-600">R$ {(item.price * item.quantity).toFixed(2)}</span>
+                        <span className="text-sm font-bold text-surface-600">R$ {formatMoneyValue(getItemPrice(item) * getItemQuantity(item))}</span>
                       </label>
                     ))}
                   </div>
@@ -789,6 +794,7 @@ export default function NotesTab() {
                   <p>DATA: {new Date(viewingNote.created_at).toLocaleDateString('pt-BR')}</p>
                   <p>VEICULO: {viewingNote.vehicle_model}</p>
                   <p>PLACA: {viewingNote.plate}</p>
+                  {viewingNote.order_id && <p>OS: #{viewingNote.order_id}</p>}
                   <p>PROXIMA TROCA DE OLEO E FILTRO: ___________________________________</p>
                   <p>CLIENTE: {viewingNote.client_name}</p>
                 </div>
@@ -805,26 +811,50 @@ export default function NotesTab() {
                       </tr>
                     </thead>
                     <tbody>
-                      {/* Actual Items */}
-                      {viewingNote.items?.map((item, idx) => (
-                        <tr key={idx} className="border-b border-black h-5">
+                      {viewingServices.length > 0 && (
+                        <tr className="border-b border-black h-5 bg-surface-100">
+                          <td colSpan={4} className="px-1 text-[9px] font-bold uppercase italic">Servicos / Mao de obra</td>
+                        </tr>
+                      )}
+                      {viewingServices.map((item, idx) => (
+                        <tr key={`service-${idx}`} className="border-b border-black h-5">
+                          <td className="border-r border-black px-1 text-[9px] font-bold text-center">1</td>
+                          <td className="border-r border-black px-1 text-[9px] font-bold uppercase italic">
+                            {item.description}
+                            {item.discount_percent ? ` (-${item.discount_percent}%)` : ''}
+                          </td>
+                          <td className="border-r border-black px-1 text-[9px] font-bold text-right">
+                            R$ {formatMoneyValue(item.price)}
+                          </td>
+                          <td className="px-1 text-[9px] font-bold text-right">
+                            R$ {formatMoneyValue(getItemSubtotal(item))}
+                          </td>
+                        </tr>
+                      ))}
+                      {viewingParts.length > 0 && (
+                        <tr className="border-b border-black h-5 bg-surface-100">
+                          <td colSpan={4} className="px-1 text-[9px] font-bold uppercase italic">Pecas / Itens aplicados</td>
+                        </tr>
+                      )}
+                      {viewingParts.map((item, idx) => (
+                        <tr key={`part-${idx}`} className="border-b border-black h-5">
                           <td className="border-r border-black px-1 text-[9px] font-bold text-center">
-                            {item.type === 'service' ? '1' : item.quantity}
+                            {getItemQuantity(item)}
                           </td>
                           <td className="border-r border-black px-1 text-[9px] font-bold uppercase italic">
                             {item.description}
                             {item.discount_percent ? ` (-${item.discount_percent}%)` : ''}
                           </td>
                           <td className="border-r border-black px-1 text-[9px] font-bold text-right">
-                            R$ {item.price.toFixed(2)}
+                            R$ {formatMoneyValue(item.price)}
                           </td>
                           <td className="px-1 text-[9px] font-bold text-right">
-                            R$ {((item.price * (item.quantity || 1)) * (1 - (item.discount_percent || 0) / 100)).toFixed(2)}
+                            R$ {formatMoneyValue(getItemSubtotal(item))}
                           </td>
                         </tr>
                       ))}
                       {/* Empty Rows to fill space like in the image */}
-                      {Array.from({ length: Math.max(0, 30 - (viewingNote.items?.length || 0)) }).map((_, i) => (
+                      {Array.from({ length: Math.max(0, 30 - filledRowsCount) }).map((_, i) => (
                         <tr key={`empty-${i}`} className="border-b border-black h-5">
                           <td className="border-r border-black px-1"></td>
                           <td className="border-r border-black px-1"></td>
@@ -842,15 +872,15 @@ export default function NotesTab() {
                     <tbody>
                       <tr className="border-b border-black">
                         <td className="border-r border-black px-1 py-0.5 w-16">Peças</td>
-                        <td className="px-1 py-0.5 text-right">R$ {viewingTotals.parts.toFixed(2)}</td>
+                        <td className="px-1 py-0.5 text-right">R$ {formatMoneyValue(viewingTotals.parts)}</td>
                       </tr>
                       <tr className="border-b border-black">
                         <td className="border-r border-black px-1 py-0.5">Serviço</td>
-                        <td className="px-1 py-0.5 text-right">R$ {viewingTotals.services.toFixed(2)}</td>
+                        <td className="px-1 py-0.5 text-right">R$ {formatMoneyValue(viewingTotals.services)}</td>
                       </tr>
                       <tr>
                         <td className="border-r border-black px-1 py-0.5">Valor total</td>
-                        <td className="px-1 py-0.5 text-right">R$ {viewingTotals.total.toFixed(2)}</td>
+                        <td className="px-1 py-0.5 text-right">R$ {formatMoneyValue(viewingTotals.total)}</td>
                       </tr>
                     </tbody>
                   </table>
@@ -859,8 +889,8 @@ export default function NotesTab() {
                 {/* Payment Info (Custom addition for utility) */}
                 {viewingNote.payment_status !== 'unpaid' && (
                   <div className="mt-4 text-[10px] font-bold uppercase italic text-surface-600">
-                    PAGAMENTO: {viewingNote.payment_status === 'paid' ? 'TOTALMENTE PAGO' : `PARCIAL (PAGO R$ ${viewingNote.paid_amount?.toFixed(2)})`}
-                    {viewingNote.payment_status === 'partial' && ` - SALDO: R$ ${(viewingTotals.total - (viewingNote.paid_amount || 0)).toFixed(2)}`}
+                    PAGAMENTO: {viewingNote.payment_status === 'paid' ? 'TOTALMENTE PAGO' : `PARCIAL (PAGO R$ ${formatMoneyValue(viewingNote.paid_amount)})`}
+                    {viewingNote.payment_status === 'partial' && ` - SALDO: R$ ${formatMoneyValue(viewingTotals.total - (viewingNote.paid_amount || 0))}`}
                   </div>
                 )}
               </div>

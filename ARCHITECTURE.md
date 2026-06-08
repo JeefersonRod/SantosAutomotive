@@ -24,7 +24,9 @@ Novas chamadas de API devem usar `src/services` e `apiRequest` em vez de `fetch`
 
 ## Ordens De Servico
 
-Ordens de Servico sao o centro operacional do sistema. A fase atual preserva o backend e o schema existentes: status legados `pending`, `in_progress` e `completed`, itens manuais em `order_items`, tecnicos em `order_technicians`, checklist em JSONB e testes em `service_order_tests`. Fluxos profissionais mais granulares devem ser planejados com migration compativel para nao quebrar O.S. antigas, Dashboard, Clientes e Notas.
+Ordens de Servico sao o centro operacional do sistema. A fase atual preserva o schema existente: status legados `pending`, `in_progress` e `completed`, itens manuais em `order_items`, tecnicos em `order_technicians`, checklist em JSONB e testes em `service_order_tests`. O checklist de entrada usa tres estados no frontend (`present`, `absent`, `not_checked`) com compatibilidade para valores booleanos antigos.
+
+Notas de Servico podem ser geradas a partir da O.S. pelo endpoint `POST /api/orders/:id/note`, que reutiliza `notes.order_id`, `note_items` e evita duplicar nota quando uma ja existe para a mesma O.S. Itens de `order_items` continuam com valores internos legados (`labor`, `parts`) e sao mapeados para `service` e `part` em `note_items`. Fluxos profissionais mais granulares devem ser planejados com migration compativel para nao quebrar O.S. antigas, Dashboard, Clientes e Notas.
 
 ## Atendimento
 

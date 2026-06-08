@@ -6,6 +6,7 @@ import { ApiError } from '../../services/api';
 import { clientService, orderService, staffService, vehicleService } from '../../services';
 import { useAuth } from '../../contexts/AuthContext';
 import { Badge, Button, Card, FormSection, Input, LoadingState, PageHeader, Select, Textarea } from '../../components/ui';
+import { createDefaultChecklist } from '../../utils/checklist';
 
 type Step = 'client' | 'vehicle' | 'complaint' | 'review';
 
@@ -16,16 +17,6 @@ const stepLabels: Record<Step, string> = {
   complaint: 'Queixa',
   review: 'Revisao'
 };
-
-const createDefaultChecklist = () => ({
-  fuel_level: '1/4',
-  scratches: false,
-  spare_tire: true,
-  triangle: true,
-  jack: true,
-  documents: true,
-  personal_items: false
-});
 
 export default function ReceptionTab({ onNavigate }: { onNavigate: (tab: string) => void }) {
   const { user } = useAuth();

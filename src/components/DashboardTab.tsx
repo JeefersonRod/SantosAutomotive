@@ -29,6 +29,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
 import { ApiError } from '../services/api';
 import { orderService, reportService, staffService, vehicleService } from '../services';
+import { CHECKLIST_ITEMS, CHECKLIST_STATUS_OPTIONS, createDefaultChecklist } from '../utils/checklist';
 
 interface Stats {
   clients: number;
@@ -70,15 +71,7 @@ export default function DashboardTab({ onNavigate }: { onNavigate: (tab: any) =>
     description: '',
     technician_ids: [] as number[],
     notes: '',
-    checklist: {
-      fuel_level: '1/4',
-      scratches: false,
-      spare_tire: true,
-      triangle: true,
-      jack: true,
-      documents: true,
-      personal_items: false
-    } as Record<string, any>,
+    checklist: createDefaultChecklist() as Record<string, any>,
     items: [] as OrderItem[],
     checkin_images: [] as string[],
     entry_date: new Date().toISOString().split('T')[0],
@@ -181,15 +174,7 @@ export default function DashboardTab({ onNavigate }: { onNavigate: (tab: any) =>
         description: '',
         technician_ids: [],
         notes: '',
-        checklist: {
-          fuel_level: '1/4',
-          scratches: false,
-          spare_tire: true,
-          triangle: true,
-          jack: true,
-          documents: true,
-          personal_items: false
-        },
+        checklist: createDefaultChecklist(),
         items: [],
         checkin_images: [],
         entry_date: new Date().toISOString().split('T')[0],
@@ -478,6 +463,7 @@ export default function DashboardTab({ onNavigate }: { onNavigate: (tab: any) =>
                       value={osForm.checklist.fuel_level}
                       onChange={e => setOsForm({...osForm, checklist: {...osForm.checklist, fuel_level: e.target.value}})}
                     >
+                      <option value="not_checked">Nao verificado</option>
                       <option value="Reserva">Reserva</option>
                       <option value="1/4">1/4</option>
                       <option value="1/2">1/2</option>
@@ -485,27 +471,25 @@ export default function DashboardTab({ onNavigate }: { onNavigate: (tab: any) =>
                       <option value="Cheio">Cheio</option>
                     </select>
                   </div>
-                  {[
-                    { key: 'scratches', label: 'Avarias/Riscos' },
-                    { key: 'spare_tire', label: 'Estepe' },
-                    { key: 'triangle', label: 'Triângulo' },
-                    { key: 'jack', label: 'Macaco' },
-                    { key: 'documents', label: 'Documentos' },
-                    { key: 'personal_items', label: 'Itens Pessoais' }
-                  ].map(item => (
+                  {CHECKLIST_ITEMS.map(item => (
                     <div key={item.key} className="flex flex-col gap-1">
                       <label className="text-[10px] font-bold text-surface-400 uppercase">{item.label}</label>
-                      <button
-                        type="button"
-                        onClick={() => setOsForm({...osForm, checklist: {...osForm.checklist, [item.key]: !osForm.checklist[item.key]}})}
-                        className={`px-3 py-2 rounded-xl text-[10px] font-bold border transition-all ${
-                          osForm.checklist[item.key] 
-                            ? 'bg-emerald-50 border-emerald-200 text-emerald-600' 
-                            : 'bg-white border-surface-200 text-surface-400'
-                        }`}
-                      >
-                        {osForm.checklist[item.key] ? 'PRESENTE/OK' : 'AUSENTE/NÃO'}
-                      </button>
+                      <div className="grid grid-cols-1 gap-1">
+                        {CHECKLIST_STATUS_OPTIONS.map((option) => (
+                          <button
+                            key={option.value}
+                            type="button"
+                            onClick={() => setOsForm({...osForm, checklist: {...osForm.checklist, [item.key]: option.value}})}
+                            className={`px-3 py-2 rounded-xl text-[10px] font-bold border transition-all ${
+                              osForm.checklist[item.key] === option.value
+                                ? option.className
+                                : 'bg-white border-surface-200 text-surface-400'
+                            }`}
+                          >
+                            {option.shortLabel}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -554,8 +538,8 @@ export default function DashboardTab({ onNavigate }: { onNavigate: (tab: any) =>
                       value={newItem.type}
                       onChange={e => setNewItem({ ...newItem, type: e.target.value as any })}
                     >
-                      <option value="parts">Peça</option>
-                      <option value="labor">Mão de Obra</option>
+                      <option value="parts">Peca aplicada</option>
+                      <option value="labor">Servico / Mao de obra</option>
                     </select>
                     <button 
                       type="button"
@@ -582,7 +566,7 @@ export default function DashboardTab({ onNavigate }: { onNavigate: (tab: any) =>
                         </div>
                         <div>
                           <p className="text-sm font-bold text-surface-900">{item.description}</p>
-                          <p className="micro-label !text-[8px]">{item.type === 'parts' ? 'Peça' : 'Mão de Obra'} • Qtd: {item.quantity || 1}</p>
+                          <p className="micro-label !text-[8px]">{item.type === 'parts' ? 'Peca aplicada' : 'Servico'} - Qtd: {item.quantity || 1}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-4">

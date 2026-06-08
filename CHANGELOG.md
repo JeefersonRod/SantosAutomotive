@@ -2,6 +2,10 @@
 
 ## Atual
 
+- Checklist de entrada da O.S. ajustado para tres estados: presente, ausente e nao verificado.
+- O.S. agora pode gerar/abrir Nota de Servico por acao explicita, reutilizando a nota existente quando houver `order_id`.
+- Itens da O.S. mantem valores internos legados, mas a interface diferencia "Servico" e "Peca aplicada" sem criar estoque/produto.
+- Visualizacao/impressao de Notas separa servicos e pecas aplicadas, com calculos tolerantes a valores vazios para evitar tela branca.
 - Criada tela de Atendimento/Recepcao em etapas para buscar/cadastrar cliente, buscar/cadastrar veiculo e abrir O.S. pendente.
 - Atendimento conectado a navegacao apenas para `super_admin`, `admin` e `attendant`.
 - Fluxo de Atendimento reutiliza `clientService`, `vehicleService` e `orderService`, sem fetch direto.

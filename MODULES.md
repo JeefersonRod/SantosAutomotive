@@ -25,7 +25,7 @@ A aba Produtos foi removida da navegacao principal. Itens de pecas continuam per
 
 ## Ordens De Servico
 
-A O.S. atual usa estrutura existente sem estoque comercial: cliente e veiculo via `vehicle_id`, responsaveis via `order_technicians`, itens manuais via `order_items`, checklist de entrada em JSONB, testes tecnicos em `service_order_tests` e nota operacional quando a O.S. e finalizada. Status profissionais futuros devem manter compatibilidade com `pending`, `in_progress` e `completed`.
+A O.S. atual usa estrutura existente sem estoque comercial: cliente e veiculo via `vehicle_id`, responsaveis via `order_technicians`, itens manuais via `order_items`, checklist de entrada em JSONB com tres estados, testes tecnicos em `service_order_tests` e nota operacional gerada a partir da O.S. quando solicitada. Servicos e pecas aplicadas sao categorias internas da O.S./nota, nao catalogo comercial. Status profissionais futuros devem manter compatibilidade com `pending`, `in_progress` e `completed`.
 
 ## Atendimento
 

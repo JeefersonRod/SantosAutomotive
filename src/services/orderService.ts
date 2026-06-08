@@ -24,4 +24,7 @@ export const orderService = {
       body: JSON.stringify(payload),
     })
   ),
+  generateNote: (orderId: number) => apiRequest<{ note_id: number }>(`/api/orders/${orderId}/note`, {
+    method: 'POST',
+  }),
 };

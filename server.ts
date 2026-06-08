@@ -758,7 +758,8 @@ apiRouter.use(ensureAdmin);
         vehicle_model: order.vehicles.model,
         plate: order.vehicles.plate,
         customer_name: order.vehicles.clients.name,
-        technician_names: techs?.map((t: any) => t.staff_members.name) || []
+        technician_names: techs?.map((t: any) => t.staff_members.name) || [],
+        note_id: (await supabase.from("notes").select("id").eq("order_id", order.id).maybeSingle()).data?.id || null
       };
     }));
 
@@ -914,12 +915,14 @@ apiRouter.use(ensureAdmin);
     const { data: items } = await supabase.from("order_items").select("*").eq("order_id", req.params.id);
     const { data: technicians } = await supabase.from("order_technicians").select("technician_id").eq("order_id", req.params.id);
     const { data: tests } = await supabase.from("service_order_tests").select("*").eq("order_id", req.params.id);
+    const { data: note } = await supabase.from("notes").select("id").eq("order_id", req.params.id).maybeSingle();
     
     res.json({ 
       ...order, 
       items: items || [], 
       technician_ids: technicians?.map(t => t.technician_id) || [],
-      tests: tests || []
+      tests: tests || [],
+      note_id: note?.id || null
     });
   });
 
@@ -1038,6 +1041,15 @@ apiRouter.use(ensureAdmin);
     } catch (err: any) {
       res.status(500).json({ error: formatApiError(err) });
     }
+  });
+
+  apiRouter.post("/orders/:id/note", requireAuth, requireFinanceAccess, async (req, res) => {
+    const noteId = await createNoteFromOrder(req.params.id);
+    if (!noteId) {
+      return res.status(500).json({ error: "Falha ao gerar nota da ordem de servico" });
+    }
+
+    res.json({ note_id: noteId });
   });
 
   apiRouter.delete("/orders/:id", requireAuth, requireWorkshopOperator, async (req, res) => {
@@ -1423,7 +1435,7 @@ apiRouter.use(ensureAdmin);
       if (orderError || !order) throw new Error("Order not found for note generation");
 
       // Check if note already exists for this order
-      const { data: existingNote } = await supabase.from("notes").select("id").eq("order_id", orderId).single();
+      const { data: existingNote } = await supabase.from("notes").select("id").eq("order_id", orderId).maybeSingle();
       if (existingNote) return existingNote.id;
 
       // Create note

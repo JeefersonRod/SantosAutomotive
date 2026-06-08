@@ -13,3 +13,5 @@ Nao usar `products` como loja, vitrine, catalogo, promocao ou fluxo de venda par
 ## Mudancas De Banco
 
 Esta etapa nao altera banco e nao cria migration.
+
+O checklist de entrada continua salvo no JSONB existente de `service_orders.checklist`. A geracao de nota a partir de O.S. reutiliza `notes.order_id` e `note_items`; nenhuma tabela nova foi criada nesta etapa.
