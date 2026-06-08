@@ -1,7 +1,5 @@
-const CACHE_NAME = 'santos-automotive-v3';
+const CACHE_NAME = 'santos-automotive-v4';
 const ASSETS = [
-  '/',
-  '/index.html',
   '/manifest.json',
   '/logo.jpg'
 ];
@@ -25,10 +23,34 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  const request = event.request;
+  const url = new URL(request.url);
+
+  if (request.method !== 'GET' || url.pathname.startsWith('/api/')) {
+    return;
+  }
+
+  if (request.mode === 'navigate' || request.headers.get('accept')?.includes('text/html')) {
+    event.respondWith(
+      fetch(request).then((networkResponse) => {
+        if (networkResponse.ok) {
+          const responseClone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', responseClone));
+        }
+        return networkResponse;
+      }).catch(() => caches.match('/index.html'))
+    );
+    return;
+  }
+
   event.respondWith(
-    caches.match(event.request).then((response) => {
-      return response || fetch(event.request);
-    })
+    caches.match(request).then((response) => response || fetch(request).then((networkResponse) => {
+      if (networkResponse.ok && url.origin === self.location.origin) {
+        const responseClone = networkResponse.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
+      }
+      return networkResponse;
+    }))
   );
 });
 

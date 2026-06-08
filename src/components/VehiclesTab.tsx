@@ -291,7 +291,7 @@ export default function VehiclesTab() {
               <div className="flex items-center gap-4 mt-6 sm:mt-0 w-full sm:w-auto justify-end">
                 <button 
                   onClick={() => handleOpenModal(vehicle)} 
-                  className="p-4 hover:bg-brand-primary/5 rounded-2xl text-surface-300 hover:text-brand-primary transition-all hover:shadow-sm"
+                  className="p-4 bg-brand-primary/10 hover:bg-brand-primary/15 rounded-2xl text-brand-primary transition-all hover:shadow-sm"
                   title="Editar"
                 >
                   <Edit2 className="w-6 h-6" />
@@ -299,7 +299,7 @@ export default function VehiclesTab() {
                 {user?.permissions !== 'technician' && (
                   <button 
                     onClick={() => deleteVehicle(vehicle.id)} 
-                    className="p-4 hover:bg-brand-accent/5 rounded-2xl text-surface-300 hover:text-brand-accent transition-all hover:shadow-sm"
+                    className="p-4 bg-brand-accent/10 hover:bg-brand-accent/15 rounded-2xl text-brand-accent transition-all hover:shadow-sm"
                     title="Excluir"
                   >
                     <Trash2 className="w-6 h-6" />

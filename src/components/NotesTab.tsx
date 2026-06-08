@@ -360,12 +360,12 @@ export default function NotesTab() {
                     <div className="flex gap-2">
                       <button 
                         onClick={(e) => { e.stopPropagation(); openEditModal(note); }}
-                        className="w-10 h-10 rounded-xl bg-surface-50 flex items-center justify-center text-surface-400 hover:bg-brand-primary hover:text-white transition-all"
+                        className="w-10 h-10 rounded-xl bg-brand-primary/10 flex items-center justify-center text-brand-primary hover:bg-brand-primary hover:text-white transition-all"
                         title="Editar Nota"
                       >
                         <Pencil className="w-4 h-4" />
                       </button>
-                      <div className="w-10 h-10 rounded-xl bg-surface-50 flex items-center justify-center text-surface-400 group-hover:bg-brand-primary group-hover:text-white transition-all">
+                      <div className="w-10 h-10 rounded-xl bg-brand-primary/10 flex items-center justify-center text-brand-primary group-hover:bg-brand-primary group-hover:text-white transition-all">
                         <Eye className="w-5 h-5" />
                       </div>
                     </div>

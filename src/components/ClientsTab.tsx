@@ -91,8 +91,6 @@ export default function ClientsTab() {
   };
 
   const handleOpenModal = (e: React.MouseEvent, client?: Client) => {
-    console.log('handleOpenModal called', { client, isModalOpen });
-    // alert('Abrindo modal...'); // Temporary debug
     e.preventDefault();
     e.stopPropagation();
     if (client) {
@@ -221,7 +219,7 @@ export default function ClientsTab() {
 
   const totalSpent = Array.isArray(clientOrders) ? clientOrders.reduce((sum, order) => sum + (order.total_amount || 0), 0) : 0;
 
-  if (selectedClient) {
+  if (selectedClient && !isModalOpen) {
     return (
       <motion.div 
         initial={{ opacity: 0, x: 20 }} 
@@ -534,7 +532,7 @@ export default function ClientsTab() {
                 <div className="flex gap-2">
                   <button 
                     onClick={(e) => handleOpenModal(e, client)} 
-                    className="p-4 hover:bg-brand-primary/5 rounded-2xl text-surface-300 hover:text-brand-primary transition-all hover:shadow-sm"
+                    className="p-4 bg-brand-primary/10 hover:bg-brand-primary/15 rounded-2xl text-brand-primary transition-all hover:shadow-sm"
                     title="Editar"
                   >
                     <Edit2 className="w-6 h-6" />
@@ -542,7 +540,7 @@ export default function ClientsTab() {
                   {user?.permissions !== 'technician' && (
                     <button 
                       onClick={(e) => deleteClient(e, client.id)} 
-                      className="p-4 hover:bg-brand-accent/5 rounded-2xl text-surface-300 hover:text-brand-accent transition-all hover:shadow-sm"
+                      className="p-4 bg-brand-accent/10 hover:bg-brand-accent/15 rounded-2xl text-brand-accent transition-all hover:shadow-sm"
                       title="Excluir"
                     >
                       <Trash2 className="w-6 h-6" />
@@ -550,7 +548,7 @@ export default function ClientsTab() {
                   )}
                 </div>
                 <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-surface-50 group-hover:bg-brand-primary group-hover:text-white transition-all duration-300">
-                  <ChevronRight className="w-7 h-7 text-surface-300 group-hover:text-white transition-all group-hover:translate-x-0.5" />
+                  <ChevronRight className="w-7 h-7 text-brand-primary group-hover:text-white transition-all group-hover:translate-x-0.5" />
                 </div>
               </div>
             </motion.div>
@@ -561,7 +559,6 @@ export default function ClientsTab() {
       <AnimatePresence>
         {isModalOpen && (
           <div className="fixed inset-0 z-[9999] flex items-start justify-center p-4 bg-surface-950/60 backdrop-blur-md overflow-y-auto">
-            {console.log('Rendering Modal', { isModalOpen })}
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }} 
               animate={{ opacity: 1, scale: 1, y: 0 }}
