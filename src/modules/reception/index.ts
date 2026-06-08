@@ -1,1 +1,1 @@
-// Reception module boundary for future atendimento workflows.
+export { default as ReceptionTab } from './ReceptionTab';

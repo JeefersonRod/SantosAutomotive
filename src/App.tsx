@@ -14,9 +14,11 @@ import NotesTab from './components/NotesTab';
 import StaffTab from './components/StaffTab';
 import UserProfileModal from './components/UserProfileModal';
 import { AccessDeniedState } from './components/ui';
+import { ReceptionTab } from './modules/reception';
 
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', title: 'Dashboard', description: 'Visão geral da operação da oficina.', icon: LayoutDashboard, path: '/', roles: ['super_admin', 'admin', 'attendant', 'technician'] },
+  { id: 'reception', label: 'Atendimento', title: 'Atendimento', description: 'Recepcione clientes, veiculos e abra O.S. rapidamente.', icon: Wrench, path: '/reception', roles: ['super_admin', 'admin', 'attendant'] },
   { id: 'orders', label: 'Ordens', title: 'Ordens', description: 'Acompanhe serviços, status e responsáveis.', icon: Receipt, path: '/orders', roles: ['super_admin', 'admin', 'attendant', 'technician'] },
   { id: 'notes', label: 'Notas', title: 'Notas de Serviço', description: 'Visualize, crie e imprima notas para clientes.', icon: StickyNote, path: '/notes', roles: ['super_admin', 'admin', 'attendant'] },
   { id: 'clients', label: 'Clientes', title: 'Gestão de Clientes', description: 'Visualize e gerencie sua base de proprietários.', icon: Users, path: '/clients', roles: ['super_admin', 'admin', 'attendant'] },
@@ -221,6 +223,7 @@ function AppContent() {
             >
               <Routes>
                 <Route path="/" element={guardedRoute('dashboard', <DashboardTab onNavigate={navigateToTab} />)} />
+                <Route path="/reception" element={guardedRoute('reception', <ReceptionTab onNavigate={navigateToTab} />)} />
                 <Route path="/orders" element={guardedRoute('orders', <OrdersTab onNavigate={navigateToTab} />)} />
                 <Route path="/notes" element={guardedRoute('notes', <NotesTab />)} />
                 <Route path="/clients" element={guardedRoute('clients', <ClientsTab />)} />

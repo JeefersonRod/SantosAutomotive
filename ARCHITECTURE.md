@@ -26,6 +26,10 @@ Novas chamadas de API devem usar `src/services` e `apiRequest` em vez de `fetch`
 
 Ordens de Servico sao o centro operacional do sistema. A fase atual preserva o backend e o schema existentes: status legados `pending`, `in_progress` e `completed`, itens manuais em `order_items`, tecnicos em `order_technicians`, checklist em JSONB e testes em `service_order_tests`. Fluxos profissionais mais granulares devem ser planejados com migration compativel para nao quebrar O.S. antigas, Dashboard, Clientes e Notas.
 
+## Atendimento
+
+Atendimento/Recepcao e uma camada frontend integrada a Clientes, Veiculos e Ordens. A fase atual reutiliza `clientService`, `vehicleService` e `orderService`, salva a queixa inicial em `service_orders.description`, observacoes em `service_orders.notes` e abre O.S. com status legado `pending`. Nao ha backend, schema ou RBAC novo nesta fase.
+
 ## Decisao Arquitetural
 
 O sistema nao deve ser organizado ao redor de produtos, loja ou estoque comercial. A organizacao desejada e por operacao de oficina: atendimento, clientes, veiculos, O.S., diagnostico, agenda, financeiro operacional, equipe, relatorios e configuracoes.

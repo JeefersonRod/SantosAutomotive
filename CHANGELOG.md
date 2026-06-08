@@ -2,6 +2,9 @@
 
 ## Atual
 
+- Criada tela de Atendimento/Recepcao em etapas para buscar/cadastrar cliente, buscar/cadastrar veiculo e abrir O.S. pendente.
+- Atendimento conectado a navegacao apenas para `super_admin`, `admin` e `attendant`.
+- Fluxo de Atendimento reutiliza `clientService`, `vehicleService` e `orderService`, sem fetch direto.
 - Auditado o fluxo atual de Ordens de Servico.
 - Aplicada Fase 1 segura da O.S. profissional sem migration: organizacao em secoes, labels mais operacionais, busca ampliada, status visual compativel e validacoes melhores.
 - Mantidos backend, banco, RBAC e status legados de O.S. sem alteracao.

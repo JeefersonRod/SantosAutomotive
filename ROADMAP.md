@@ -21,10 +21,11 @@
 
 ## Proximas Etapas Recomendadas
 
-1. Planejar migration compativel para status profissional de O.S. sem quebrar status legados.
-2. Separar campos de O.S. para queixa do cliente, diagnostico tecnico, observacoes internas e entrega.
-3. Criar historico de status/aprovacao de orcamento quando houver regra segura.
-4. Extrair layout do `App.tsx`.
-5. Dividir modais grandes de O.S., notas, clientes, veiculos e equipe.
-6. Aplicar componentes `ui` nas telas prioritarias.
-7. Definir modulo seguro para area do cliente, se necessario.
+1. Validar Atendimento com admin e attendant em dados reais da oficina.
+2. Planejar migration compativel para status profissional de O.S. sem quebrar status legados.
+3. Separar campos de O.S. para queixa do cliente, diagnostico tecnico, observacoes internas e entrega.
+4. Criar historico de status/aprovacao de orcamento quando houver regra segura.
+5. Extrair layout do `App.tsx`.
+6. Dividir modais grandes de O.S., notas, clientes, veiculos e equipe.
+7. Aplicar componentes `ui` nas telas prioritarias.
+8. Definir modulo seguro para area do cliente, se necessario.

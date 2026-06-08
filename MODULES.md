@@ -26,3 +26,7 @@ A aba Produtos foi removida da navegacao principal. Itens de pecas continuam per
 ## Ordens De Servico
 
 A O.S. atual usa estrutura existente sem estoque comercial: cliente e veiculo via `vehicle_id`, responsaveis via `order_technicians`, itens manuais via `order_items`, checklist de entrada em JSONB, testes tecnicos em `service_order_tests` e nota operacional quando a O.S. e finalizada. Status profissionais futuros devem manter compatibilidade com `pending`, `in_progress` e `completed`.
+
+## Atendimento
+
+A tela Atendimento guia a recepcao em quatro etapas: cliente, veiculo, queixa e revisao. Ela nao cria modulo comercial novo; apenas reduz atrito para buscar/cadastrar cliente, buscar/cadastrar veiculo e abrir O.S. pendente com dados minimos.
