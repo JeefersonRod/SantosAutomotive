@@ -28,6 +28,8 @@ Ordens de Servico sao o centro operacional do sistema. A fase atual preserva o s
 
 Notas de Servico podem ser geradas a partir da O.S. pelo endpoint `POST /api/orders/:id/note`, que reutiliza `notes.order_id`, `note_items` e evita duplicar nota quando uma ja existe para a mesma O.S. Itens de `order_items` continuam com valores internos legados (`labor`, `parts`) e sao mapeados para `service` e `part` em `note_items`. Fluxos profissionais mais granulares devem ser planejados com migration compativel para nao quebrar O.S. antigas, Dashboard, Clientes e Notas.
 
+Diagnostico guiado Fase 1 usa templates estaticos em `src/utils/diagnosticTemplates.ts` e persiste no modelo atual de `service_order_tests`: `component_name`, `result` e `notes`. Os campos guiados sao serializados em texto legivel dentro de `notes`, mantendo compatibilidade com testes antigos e sem migration.
+
 ## Impressao
 
 Documentos de O.S. e Nota usam componentes React dedicados em `src/components/print`, acionados por estado local das telas. A impressao usa CSS A4 em `src/index.css`, escondendo a interface operacional apenas durante `body.printing-document`. Essa camada nao altera backend, banco, RBAC, endpoints ou regras de negocio.

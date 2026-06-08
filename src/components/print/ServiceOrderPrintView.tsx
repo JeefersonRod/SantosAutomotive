@@ -1,6 +1,7 @@
 import React from 'react';
 import { ServiceOrder, OrderItem } from '../../types';
 import { CHECKLIST_ITEMS, getChecklistStatusMeta, normalizeChecklist } from '../../utils/checklist';
+import { summarizeDiagnosticTest } from '../../utils/diagnosticTemplates';
 
 const formatMoney = (value: unknown) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0));
@@ -19,6 +20,7 @@ export default function ServiceOrderPrintView({ order }: { order: ServiceOrder }
   const partItems = (order.items || []).filter((item) => item.type === 'parts');
   const servicesTotal = serviceItems.reduce((sum, item) => sum + getOrderItemTotal(item), 0);
   const partsTotal = partItems.reduce((sum, item) => sum + getOrderItemTotal(item), 0);
+  const diagnosticSummaries = (order.tests || []).map(summarizeDiagnosticTest);
   const statusLabel =
     order.status === 'pending' ? 'Recepcao / Pendente' :
       order.status === 'in_progress' ? 'Em diagnostico / Execucao' :
@@ -100,13 +102,15 @@ export default function ServiceOrderPrintView({ order }: { order: ServiceOrder }
 
       {order.tests && order.tests.length > 0 && (
         <section className="print-doc-section">
-          <h2>Diagnostico e testes</h2>
+          <h2>Diagnosticos guiados e testes</h2>
           <div className="print-doc-tests">
-            {order.tests.map((test, index) => (
-              <div key={`${test.component_name}-${index}`}>
-                <strong>{test.component_name}</strong>
-                <span>Resultado: {test.result || 'Nao informado'}</span>
-                {test.notes && <small>Obs: {test.notes}</small>}
+            {diagnosticSummaries.map((summary, index) => (
+              <div key={`${summary.title}-${index}`}>
+                <strong>{summary.title}</strong>
+                {summary.category && <span>{summary.category}</span>}
+                <span>Resultado: {summary.status}</span>
+                {summary.lines.slice(0, 8).map((line) => <small key={line}>{line}</small>)}
+                {summary.lines.length > 8 && <small>+ {summary.lines.length - 8} campos preenchidos</small>}
               </div>
             ))}
           </div>

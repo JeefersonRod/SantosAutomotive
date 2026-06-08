@@ -27,6 +27,8 @@ A aba Produtos foi removida da navegacao principal. Itens de pecas continuam per
 
 A O.S. atual usa estrutura existente sem estoque comercial: cliente e veiculo via `vehicle_id`, responsaveis via `order_technicians`, itens manuais via `order_items`, checklist de entrada em JSONB com tres estados, testes tecnicos em `service_order_tests` e nota operacional gerada a partir da O.S. quando solicitada. Servicos e pecas aplicadas sao categorias internas da O.S./nota, nao catalogo comercial. Status profissionais futuros devem manter compatibilidade com `pending`, `in_progress` e `completed`.
 
+Diagnostico guiado fica dentro da O.S. e organiza testes por sistemas automotivos como bateria/carga, combustivel, alimentacao, MAP/MAF, sensores, aceleracao/TBI, ignicao, sonda lambda e causas provaveis de perda de A/F. Esta fase nao cria modulo novo nem tabela nova.
+
 Impressao de O.S. e Nota e tratada como apresentacao frontend: documentos A4 profissionais com dados ja existentes, sem criar estoque, loja, fornecedores, compras ou regra fiscal nova.
 
 ## Atendimento

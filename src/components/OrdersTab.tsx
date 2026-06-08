@@ -6,19 +6,25 @@ import { ServiceOrder, OrderItem, Vehicle, StaffMember } from '../types';
 import MultiImageUpload from './MultiImageUpload';
 import { useAuth } from '../contexts/AuthContext';
 import { ApiError } from '../services/api';
-import { orderService, staffService, vehicleService } from '../services';
+import { diagnosticService, orderService, staffService, vehicleService } from '../services';
 import { FormSection, LoadingState } from './ui';
 import { CHECKLIST_ITEMS, CHECKLIST_STATUS_OPTIONS, createDefaultChecklist, normalizeChecklist } from '../utils/checklist';
 import ServiceOrderPrintView from './print/ServiceOrderPrintView';
-
-const PREDEFINED_COMPONENTS = [
-  "Sensor de Pressão do Rail",
-  "MAF (Fluxo de Ar)",
-  "MAP (Pressão do Coletor)",
-  "Sonda Lambda",
-  "Sensor de Temperatura da Água",
-  "Sensor de Temperatura do Ar"
-];
+import {
+  DIAGNOSTIC_RESULT_OPTIONS,
+  DIAGNOSTIC_TEMPLATES,
+  DiagnosticField,
+  DiagnosticResultStatus,
+  buildDiagnosticNotes,
+  createEmptyDiagnosticValues,
+  getDiagnosticCategories,
+  getDiagnosticStatusLabel,
+  getDiagnosticTemplate,
+  getDiagnosticTemplateByName,
+  isGuidedDiagnosticTest,
+  parseDiagnosticNotes,
+  summarizeDiagnosticTest
+} from '../utils/diagnosticTemplates';
 
 const ORDER_STATUS_OPTIONS: Array<{
   value: ServiceOrder['status'];
@@ -73,6 +79,13 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
   const [editingOrder, setEditingOrder] = useState<ServiceOrder | null>(null);
   const [modalMode, setModalMode] = useState<'full' | 'checklist' | 'tests'>('full');
   const [printOrder, setPrintOrder] = useState<ServiceOrder | null>(null);
+  const [loadedTests, setLoadedTests] = useState<ServiceOrder['tests']>([]);
+  const [selectedDiagnosticCategory, setSelectedDiagnosticCategory] = useState(getDiagnosticCategories()[0]);
+  const [selectedDiagnosticTemplateKey, setSelectedDiagnosticTemplateKey] = useState(DIAGNOSTIC_TEMPLATES[0].key);
+  const [diagnosticValues, setDiagnosticValues] = useState<Record<string, string>>(createEmptyDiagnosticValues(DIAGNOSTIC_TEMPLATES[0]));
+  const [diagnosticResult, setDiagnosticResult] = useState<DiagnosticResultStatus>('inconclusivo');
+  const [diagnosticObservations, setDiagnosticObservations] = useState('');
+  const [manualTestName, setManualTestName] = useState('');
   
   const [formData, setFormData] = useState({
     vehicle_id: 0,
@@ -90,6 +103,11 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
   });
 
   const [newItem, setNewItem] = useState<OrderItem>({ description: '', price: 0, quantity: 1, type: 'parts' });
+  const diagnosticCategories = getDiagnosticCategories();
+  const selectedDiagnosticTemplate = getDiagnosticTemplate(selectedDiagnosticTemplateKey) || DIAGNOSTIC_TEMPLATES[0];
+  const guidedDiagnosticTests = formData.tests.filter((test) => isGuidedDiagnosticTest(test));
+  const freeDiagnosticTests = formData.tests.filter((test) => !isGuidedDiagnosticTest(test));
+  const canEditDiagnostics = user?.permissions !== 'attendant' && user?.permissions !== 'client';
 
   useEffect(() => {
     fetchOrders();
@@ -172,6 +190,173 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
     }
   };
 
+  const resetDiagnosticForm = (templateKey = selectedDiagnosticTemplateKey) => {
+    const template = getDiagnosticTemplate(templateKey) || DIAGNOSTIC_TEMPLATES[0];
+    setSelectedDiagnosticTemplateKey(template.key);
+    setSelectedDiagnosticCategory(template.category);
+    setDiagnosticValues(createEmptyDiagnosticValues(template));
+    setDiagnosticResult('inconclusivo');
+    setDiagnosticObservations('');
+  };
+
+  const loadDiagnosticTemplate = (templateKey: string, existingTest?: NonNullable<ServiceOrder['tests']>[number]) => {
+    const template = getDiagnosticTemplate(templateKey);
+    if (!template) return;
+
+    setSelectedDiagnosticTemplateKey(template.key);
+    setSelectedDiagnosticCategory(template.category);
+
+    if (existingTest) {
+      const parsed = parseDiagnosticNotes(template, existingTest.notes);
+      setDiagnosticValues(parsed.values);
+      setDiagnosticObservations(parsed.observations);
+      setDiagnosticResult(
+        DIAGNOSTIC_RESULT_OPTIONS.some((option) => option.value === existingTest.result)
+          ? existingTest.result as DiagnosticResultStatus
+          : 'inconclusivo'
+      );
+      return;
+    }
+
+    const savedTest = formData.tests.find((test) => test.component_name === template.name);
+    if (savedTest) {
+      const parsed = parseDiagnosticNotes(template, savedTest.notes);
+      setDiagnosticValues(parsed.values);
+      setDiagnosticObservations(parsed.observations);
+      setDiagnosticResult(
+        DIAGNOSTIC_RESULT_OPTIONS.some((option) => option.value === savedTest.result)
+          ? savedTest.result as DiagnosticResultStatus
+          : 'inconclusivo'
+      );
+      return;
+    }
+
+    resetDiagnosticForm(template.key);
+  };
+
+  const updateDiagnosticField = (fieldKey: string, value: string) => {
+    setDiagnosticValues((current) => ({ ...current, [fieldKey]: value }));
+  };
+
+  const saveGuidedDiagnosticToForm = () => {
+    if (!canEditDiagnostics) {
+      toast.error('Seu perfil pode visualizar diagnosticos, mas nao alterar testes tecnicos.');
+      return;
+    }
+
+    const notes = buildDiagnosticNotes(selectedDiagnosticTemplate, diagnosticValues, diagnosticObservations);
+    const nextTest = {
+      component_name: selectedDiagnosticTemplate.name,
+      result: diagnosticResult,
+      notes
+    };
+
+    const existingIndex = formData.tests.findIndex((test) => test.component_name === selectedDiagnosticTemplate.name);
+    const nextTests = [...formData.tests];
+
+    if (existingIndex >= 0) {
+      nextTests[existingIndex] = { ...nextTests[existingIndex], ...nextTest };
+    } else {
+      nextTests.push(nextTest);
+    }
+
+    setFormData({ ...formData, tests: nextTests });
+    toast.success('Diagnostico guiado adicionado ao resumo. Clique em Salvar para gravar na O.S.');
+  };
+
+  const addManualDiagnosticTest = () => {
+    const name = manualTestName.trim();
+    if (!name) {
+      toast.error('Informe o nome do teste livre.');
+      return;
+    }
+
+    if (formData.tests.some((test) => test.component_name.toLowerCase() === name.toLowerCase())) {
+      toast.error('Esse teste ja foi adicionado.');
+      return;
+    }
+
+    setFormData({
+      ...formData,
+      tests: [...formData.tests, { component_name: name, result: '', notes: '' }]
+    });
+    setManualTestName('');
+  };
+
+  const removeDiagnosticTestFromForm = (index: number) => {
+    const nextTests = [...formData.tests];
+    nextTests.splice(index, 1);
+    setFormData({ ...formData, tests: nextTests });
+  };
+
+  const saveTestsOnly = async () => {
+    if (!editingOrder) return;
+    if (!canEditDiagnostics) {
+      toast.error('Seu perfil pode visualizar diagnosticos, mas nao alterar testes tecnicos.');
+      return;
+    }
+
+    try {
+      const keptIds = new Set(formData.tests.map((test) => test.id).filter(Boolean));
+      const removedTests = (loadedTests || []).filter((test) => test.id && !keptIds.has(test.id));
+
+      await Promise.all(removedTests.map((test) => diagnosticService.removeOrderTest(test.id!)));
+      await Promise.all(formData.tests.map((test) => diagnosticService.saveOrderTest(editingOrder.id, {
+        component_name: test.component_name,
+        result: test.result,
+        notes: test.notes
+      })));
+
+      const updatedTests = await diagnosticService.getOrderTests(editingOrder.id);
+      setFormData({ ...formData, tests: updatedTests });
+      setLoadedTests(updatedTests);
+      await fetchOrders();
+      setIsModalOpen(false);
+      toast.success('Diagnosticos salvos na O.S.');
+    } catch (err) {
+      console.error(err);
+      toast.error(err instanceof ApiError ? err.message : 'Erro ao salvar diagnosticos');
+    }
+  };
+
+  const renderDiagnosticField = (field: DiagnosticField) => {
+    const value = diagnosticValues[field.key] || '';
+    const baseClass = 'w-full px-3 py-2 bg-white border border-surface-200 rounded-xl outline-none focus:ring-2 focus:ring-brand-primary/20 text-sm font-medium';
+
+    return (
+      <div key={field.key} className={field.type === 'textarea' ? 'space-y-1 sm:col-span-2' : 'space-y-1'}>
+        <label className="text-[10px] font-bold text-surface-500 uppercase ml-1">{field.label}</label>
+        {field.type === 'select' ? (
+          <select className={baseClass} value={value} onChange={(e) => updateDiagnosticField(field.key, e.target.value)}>
+            <option value="">Selecione</option>
+            {field.options?.map((option) => <option key={option} value={option}>{option}</option>)}
+          </select>
+        ) : field.type === 'textarea' ? (
+          <textarea
+            rows={3}
+            className={baseClass}
+            placeholder={field.placeholder}
+            value={value}
+            onChange={(e) => updateDiagnosticField(field.key, e.target.value)}
+          />
+        ) : (
+          <div className="relative">
+            <input
+              type={field.type === 'number' ? 'number' : 'text'}
+              step={field.type === 'number' ? 'any' : undefined}
+              className={`${baseClass} ${field.unit ? 'pr-12' : ''}`}
+              placeholder={field.placeholder}
+              value={value}
+              onChange={(e) => updateDiagnosticField(field.key, e.target.value)}
+            />
+            {field.unit && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-surface-400">{field.unit}</span>}
+          </div>
+        )}
+        {field.reference && <p className="text-[10px] font-semibold text-brand-primary ml-1">{field.reference}</p>}
+      </div>
+    );
+  };
+
   const handleOpenModal = async (order?: ServiceOrder, mode: 'full' | 'checklist' | 'tests' = 'full') => {
     setModalMode(mode);
     if (order) {
@@ -192,6 +377,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
           exit_date: data.exit_date ? new Date(data.exit_date).toISOString().split('T')[0] : '',
           is_priority: !!data.is_priority
         });
+        setLoadedTests(data.tests || []);
       } catch (err) {
         console.error('Failed to fetch order details:', err);
         toast.error(err instanceof ApiError ? err.message : 'Erro ao carregar ordem');
@@ -212,12 +398,18 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
         exit_date: '',
         is_priority: false
       });
+      setLoadedTests([]);
     }
     setIsModalOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (modalMode === 'tests' && editingOrder) {
+      await saveTestsOnly();
+      return;
+    }
 
     if (!formData.vehicle_id) {
       toast.error('Selecione o veiculo da O.S.');
@@ -822,117 +1014,232 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
                 )}
 
                 {showTestsModalSection && (
-                <FormSection title="Diagnostico e testes" description="Use os testes existentes para registrar evidencias tecnicas.">
-                {/* Checklist de Testes */}
-                <div className="space-y-5 bg-surface-50 p-6 rounded-3xl border border-surface-200">
-                  <div className="flex justify-between items-center">
-                    <h3 className="micro-label">Checklist de Testes Técnicos</h3>
-                    <div className="flex gap-2 overflow-x-auto pb-2 max-w-[60%] scrollbar-hide">
-                      {PREDEFINED_COMPONENTS.map(comp => (
+                <FormSection title="Diagnostico guiado" description="Selecione um modelo tecnico, preencha apenas o que foi medido e salve no resumo da O.S.">
+                <div className="space-y-5 bg-surface-50 p-4 sm:p-6 rounded-3xl border border-surface-200">
+                  <div className="space-y-3">
+                    <h3 className="micro-label">Modelos de diagnostico guiado</h3>
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+                      {diagnosticCategories.map((category) => (
                         <button
-                          key={comp}
+                          key={category}
                           type="button"
                           onClick={() => {
-                            if (!formData.tests.find(t => t.component_name === comp)) {
-                              setFormData({
-                                ...formData,
-                                tests: [...formData.tests, { component_name: comp, result: '', notes: '' }]
-                              });
-                            }
+                            setSelectedDiagnosticCategory(category);
+                            const firstTemplate = DIAGNOSTIC_TEMPLATES.find((template) => template.category === category);
+                            if (firstTemplate) loadDiagnosticTemplate(firstTemplate.key);
                           }}
-                          className="whitespace-nowrap px-3 py-1.5 bg-white border border-surface-200 rounded-xl text-[10px] font-bold text-surface-600 hover:border-brand-primary hover:text-brand-primary transition-all shadow-sm"
+                          className={`whitespace-nowrap px-3 py-2 rounded-xl text-[11px] font-bold border transition-all ${
+                            selectedDiagnosticCategory === category
+                              ? 'bg-brand-primary text-white border-brand-primary shadow-sm'
+                              : 'bg-white text-surface-600 border-surface-200 hover:border-brand-primary hover:text-brand-primary'
+                          }`}
                         >
-                          + {comp}
+                          {category}
                         </button>
                       ))}
-                      <div className="flex items-center gap-2">
-                        <input 
-                          type="text"
-                          placeholder="Outro..."
-                          className="px-3 py-1.5 bg-white border border-surface-200 rounded-xl text-[10px] font-bold text-surface-600 outline-none focus:ring-1 focus:ring-brand-primary w-24"
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              const val = (e.target as HTMLInputElement).value.trim();
-                              if (val && !formData.tests.find(t => t.component_name === val)) {
-                                setFormData({
-                                  ...formData,
-                                  tests: [...formData.tests, { component_name: val, result: '', notes: '' }]
-                                });
-                                (e.target as HTMLInputElement).value = '';
-                              }
-                            }
-                          }}
-                        />
-                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {DIAGNOSTIC_TEMPLATES.filter((template) => template.category === selectedDiagnosticCategory).map((template) => (
+                        <button
+                          key={template.key}
+                          type="button"
+                          onClick={() => loadDiagnosticTemplate(template.key)}
+                          className={`text-left p-3 rounded-2xl border transition-all ${
+                            selectedDiagnosticTemplateKey === template.key
+                              ? 'bg-white border-brand-primary text-brand-primary shadow-sm'
+                              : 'bg-white/70 border-surface-200 text-surface-700 hover:border-brand-primary/40'
+                          }`}
+                        >
+                          <span className="block text-xs font-black">{template.shortName}</span>
+                          <span className="block text-[11px] font-semibold text-surface-400">{template.name}</span>
+                        </button>
+                      ))}
                     </div>
                   </div>
 
-                  <div className="space-y-4">
+                  <div className={`${canEditDiagnostics ? 'bg-white' : 'bg-surface-100'} p-4 rounded-3xl border border-surface-200 space-y-4`}>
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                      <div>
+                        <h3 className="text-base font-display font-bold text-surface-900">{selectedDiagnosticTemplate.name}</h3>
+                        <p className="text-xs font-medium text-surface-500">{selectedDiagnosticTemplate.category}</p>
+                      </div>
+                      <select
+                        disabled={!canEditDiagnostics}
+                        className="px-3 py-2 bg-surface-50 border border-surface-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-brand-primary/20 disabled:opacity-60"
+                        value={diagnosticResult}
+                        onChange={(e) => setDiagnosticResult(e.target.value as DiagnosticResultStatus)}
+                      >
+                        {DIAGNOSTIC_RESULT_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {!canEditDiagnostics && (
+                      <p className="text-xs font-semibold text-surface-500 bg-white border border-surface-200 rounded-2xl p-3">
+                        Seu perfil visualiza diagnosticos tecnicos, mas nao altera testes nesta etapa.
+                      </p>
+                    )}
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[46vh] overflow-y-auto pr-1">
+                      {selectedDiagnosticTemplate.fields.map(renderDiagnosticField)}
+                      <div className="space-y-1 sm:col-span-2">
+                        <label className="text-[10px] font-bold text-surface-500 uppercase ml-1">Observacoes finais</label>
+                        <textarea
+                          disabled={!canEditDiagnostics}
+                          rows={3}
+                          className="w-full px-3 py-2 bg-white border border-surface-200 rounded-xl outline-none focus:ring-2 focus:ring-brand-primary/20 text-sm font-medium disabled:opacity-60"
+                          placeholder="Conclusao, evidencia, proximo passo ou ressalva tecnica..."
+                          value={diagnosticObservations}
+                          onChange={(e) => setDiagnosticObservations(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    {canEditDiagnostics && (
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <button type="button" onClick={saveGuidedDiagnosticToForm} className="btn-primary rounded-2xl py-3">
+                          <CheckCircle2 className="w-4 h-4" />
+                          Salvar no resumo
+                        </button>
+                        <button type="button" onClick={() => resetDiagnosticForm()} className="px-4 py-3 bg-surface-50 border border-surface-200 rounded-2xl text-sm font-bold text-surface-600 hover:bg-surface-100 transition-colors">
+                          Limpar campos
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {canEditDiagnostics && (
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <input
+                        type="text"
+                        placeholder="Teste livre ou componente manual..."
+                        className="flex-1 px-4 py-3 bg-white border border-surface-200 rounded-2xl outline-none focus:ring-2 focus:ring-brand-primary/20 text-sm font-medium"
+                        value={manualTestName}
+                        onChange={(e) => setManualTestName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            addManualDiagnosticTest();
+                          }
+                        }}
+                      />
+                      <button type="button" onClick={addManualDiagnosticTest} className="px-4 py-3 bg-white border border-surface-200 rounded-2xl text-sm font-bold text-brand-primary hover:border-brand-primary transition-colors">
+                        + Teste livre
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="space-y-3">
+                    <h3 className="micro-label">Resumo dos diagnosticos salvos</h3>
                     {formData.tests.length === 0 ? (
-                      <p className="text-center py-4 text-surface-400 text-xs font-medium italic">Nenhum teste selecionado. Clique nos botões acima para adicionar.</p>
+                      <p className="text-center py-4 text-surface-400 text-xs font-medium italic">Nenhum diagnostico registrado nesta O.S.</p>
                     ) : (
-                      formData.tests.map((test, idx) => (
-                        <motion.div 
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          key={idx} 
-                          className="bg-white p-4 rounded-2xl border border-surface-200 shadow-sm space-y-3 relative group"
-                        >
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm font-bold text-brand-primary flex items-center gap-2">
-                              <CheckCircle2 className="w-4 h-4" />
-                              {test.component_name}
-                            </span>
-                            <button 
-                              type="button" 
-                              onClick={() => {
-                                const nt = [...formData.tests];
-                                nt.splice(idx, 1);
-                                setFormData({ ...formData, tests: nt });
-                              }}
-                              className="p-1.5 hover:bg-red-50 text-surface-300 hover:text-red-500 transition-colors rounded-lg"
+                      <>
+                        {guidedDiagnosticTests.map((test) => {
+                          const originalIndex = formData.tests.indexOf(test);
+                          const summary = summarizeDiagnosticTest(test);
+                          const template = getDiagnosticTemplateByName(test.component_name);
+                          return (
+                            <motion.div
+                              initial={{ opacity: 0, y: 8 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              key={`${test.component_name}-${originalIndex}`}
+                              className="bg-white p-4 rounded-2xl border border-surface-200 shadow-sm space-y-3"
                             >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                          
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-bold text-surface-400 uppercase ml-1">Resultado do Teste</label>
-                              <input 
-                                placeholder="Ex: 4.2 bar, 12.5 kg/h..."
-                                className="w-full px-3 py-2 bg-surface-50 border border-surface-100 rounded-xl outline-none focus:ring-2 focus:ring-brand-primary/20 text-sm font-bold"
-                                value={test.result}
-                                onChange={(e) => {
-                                  const nt = [...formData.tests];
-                                  nt[idx].result = e.target.value;
-                                  setFormData({ ...formData, tests: nt });
-                                }}
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-bold text-surface-400 uppercase ml-1">Observações Técnicas</label>
-                              <input 
-                                placeholder="Condição, oscilação, etc..."
-                                className="w-full px-3 py-2 bg-surface-50 border border-surface-100 rounded-xl outline-none focus:ring-2 focus:ring-brand-primary/20 text-sm font-medium"
-                                value={test.notes}
-                                onChange={(e) => {
-                                  const nt = [...formData.tests];
-                                  nt[idx].notes = e.target.value;
-                                  setFormData({ ...formData, tests: nt });
-                                }}
-                              />
-                            </div>
-                          </div>
-                        </motion.div>
-                      ))
+                              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                                <div>
+                                  <span className="text-sm font-bold text-brand-primary flex items-center gap-2">
+                                    <CheckCircle2 className="w-4 h-4" />
+                                    {summary.title}
+                                  </span>
+                                  {summary.category && <p className="text-[11px] font-bold text-surface-400 uppercase mt-1">{summary.category}</p>}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="px-2.5 py-1 rounded-full bg-brand-primary/10 text-brand-primary text-[10px] font-black uppercase">
+                                    {summary.status}
+                                  </span>
+                                  {canEditDiagnostics && template && (
+                                    <button type="button" onClick={() => loadDiagnosticTemplate(template.key, test)} className="px-3 py-1.5 bg-surface-50 border border-surface-200 rounded-xl text-[11px] font-bold text-surface-600 hover:text-brand-primary hover:border-brand-primary transition-colors">
+                                      Editar
+                                    </button>
+                                  )}
+                                  {canEditDiagnostics && (
+                                    <button type="button" onClick={() => removeDiagnosticTestFromForm(originalIndex)} className="p-1.5 hover:bg-red-50 text-surface-300 hover:text-red-500 transition-colors rounded-lg">
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                              {summary.lines.length > 0 && (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-xs font-medium text-surface-600">
+                                  {summary.lines.slice(0, 8).map((line) => <p key={line}>{line}</p>)}
+                                  {summary.lines.length > 8 && <p className="text-surface-400">+ {summary.lines.length - 8} campos preenchidos</p>}
+                                </div>
+                              )}
+                            </motion.div>
+                          );
+                        })}
+
+                        {freeDiagnosticTests.map((test) => {
+                          const originalIndex = formData.tests.indexOf(test);
+                          return (
+                            <motion.div
+                              initial={{ opacity: 0, y: 8 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              key={`${test.component_name}-${originalIndex}`}
+                              className="bg-white p-4 rounded-2xl border border-surface-200 shadow-sm space-y-3"
+                            >
+                              <div className="flex justify-between items-center gap-3">
+                                <span className="text-sm font-bold text-surface-800 flex items-center gap-2">
+                                  <Wrench className="w-4 h-4 text-brand-primary" />
+                                  {test.component_name}
+                                </span>
+                                {canEditDiagnostics && (
+                                  <button type="button" onClick={() => removeDiagnosticTestFromForm(originalIndex)} className="p-1.5 hover:bg-red-50 text-surface-300 hover:text-red-500 transition-colors rounded-lg">
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                )}
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                  <label className="text-[10px] font-bold text-surface-400 uppercase ml-1">Resultado do teste</label>
+                                  <input
+                                    disabled={!canEditDiagnostics}
+                                    placeholder="Ex: 4.2 bar, 12.5 kg/h..."
+                                    className="w-full px-3 py-2 bg-surface-50 border border-surface-100 rounded-xl outline-none focus:ring-2 focus:ring-brand-primary/20 text-sm font-bold disabled:opacity-60"
+                                    value={test.result}
+                                    onChange={(e) => {
+                                      const nt = [...formData.tests];
+                                      nt[originalIndex].result = e.target.value;
+                                      setFormData({ ...formData, tests: nt });
+                                    }}
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-[10px] font-bold text-surface-400 uppercase ml-1">Observacoes tecnicas</label>
+                                  <input
+                                    disabled={!canEditDiagnostics}
+                                    placeholder="Condicao, oscilacao, etc..."
+                                    className="w-full px-3 py-2 bg-surface-50 border border-surface-100 rounded-xl outline-none focus:ring-2 focus:ring-brand-primary/20 text-sm font-medium disabled:opacity-60"
+                                    value={test.notes || ''}
+                                    onChange={(e) => {
+                                      const nt = [...formData.tests];
+                                      nt[originalIndex].notes = e.target.value;
+                                      setFormData({ ...formData, tests: nt });
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                            </motion.div>
+                          );
+                        })}
+                      </>
                     )}
                   </div>
                 </div>
                 </FormSection>
                 )}
-
                 {isFullModal && (
                 <FormSection title="Itens e valores" description="Pecas aqui sao itens manuais internos da O.S.; nao criam estoque nem produto.">
                 <div className="space-y-5 bg-surface-50 p-6 rounded-3xl border border-surface-200">
