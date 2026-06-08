@@ -18,6 +18,16 @@ const PREDEFINED_COMPONENTS = [
   "Sensor de Temperatura do Ar"
 ];
 
+const createDefaultChecklist = () => ({
+  fuel_level: '1/4',
+  scratches: false,
+  spare_tire: true,
+  triangle: true,
+  jack: true,
+  documents: true,
+  personal_items: false
+});
+
 const ORDER_STATUS_OPTIONS: Array<{
   value: ServiceOrder['status'];
   label: string;
@@ -75,15 +85,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
     description: '',
     status: 'pending' as const,
     notes: '',
-    checklist: {
-      fuel_level: '1/4',
-      scratches: false,
-      spare_tire: true,
-      triangle: true,
-      jack: true,
-      documents: true,
-      personal_items: false
-    } as Record<string, any>,
+    checklist: createDefaultChecklist() as Record<string, any>,
     items: [] as OrderItem[],
     checkin_images: [] as string[],
     tests: [] as { component_name: string; result: string; notes: string }[],
@@ -186,15 +188,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
           description: data.description || '',
           status: data.status,
           notes: data.notes || '',
-          checklist: data.checklist || {
-            fuel_level: '1/4',
-            scratches: false,
-            spare_tire: true,
-            triangle: true,
-            jack: true,
-            documents: true,
-            personal_items: false
-          },
+          checklist: data.checklist || createDefaultChecklist(),
           items: data.items || [],
           checkin_images: safeParseImages(data.checkin_images),
           tests: data.tests || [],
@@ -214,6 +208,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any) => vo
         description: '', 
         status: 'pending', 
         notes: '', 
+        checklist: createDefaultChecklist(),
         items: [], 
         checkin_images: [],
         tests: [],
