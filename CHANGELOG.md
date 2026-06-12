@@ -2,6 +2,8 @@
 
 ## Atual
 
+- Catalogo tecnico da Frota ampliado com Toro, Jeep Renegade/Compass/Commander, Ram, Dodge RAM, SW4, Trailblazer, Pajero e X-Trail.
+- Motorizacao da Frota corrigida para representar apenas cilindrada/deslocamento, sem repetir combustivel ou tecnologia.
 - Iniciada Fase 1 da padronizacao tecnica da Frota com catalogo local focado em diesel leve, picapes e utilitarios.
 - Frota e Atendimento rapido agora usam selects de marca, modelo, versao, ano, combustivel e motorizacao, mantendo compatibilidade com `vehicles`.
 - Placas passam a ser normalizadas no frontend para busca e salvamento, sem migration ou backend novo nesta fase.

@@ -22,44 +22,97 @@ export const FUEL_OPTIONS = [
   'Eletrico'
 ] as const;
 
-export const COMMON_DIESEL_ENGINES = [
-  '2.0 Turbo Diesel',
-  '2.2 Diesel',
-  '2.3 Diesel',
-  '2.4 Diesel',
-  '2.5 Diesel',
-  '2.7 Diesel',
-  '2.8 Diesel',
-  '2.8 JTD',
-  '3.0 Diesel',
-  '3.2 Diesel',
-  '2.5 TDI'
+export const COMMON_ENGINE_DISPLACEMENTS = [
+  '1.0',
+  '1.3',
+  '1.4',
+  '1.5',
+  '1.6',
+  '1.8',
+  '2.0',
+  '2.2',
+  '2.3',
+  '2.4',
+  '2.5',
+  '2.7',
+  '2.8',
+  '3.0',
+  '3.2'
 ] as const;
 
 export const VEHICLE_CATALOG: VehicleMakeOption[] = [
-  { make: 'Toyota', models: [{ name: 'Hilux', engines: ['2.4 Diesel', '2.8 Diesel', '3.0 Diesel'] }] },
-  { make: 'Ford', models: [{ name: 'Ranger', engines: ['2.2 Diesel', '3.0 Diesel', '3.2 Diesel'] }] },
-  { make: 'Chevrolet', models: [{ name: 'S10', engines: ['2.4 Flex', '2.5 Flex', '2.8 Diesel'] }] },
+  {
+    make: 'Toyota',
+    models: [
+      { name: 'Hilux', engines: ['2.4', '2.8', '3.0'] },
+      { name: 'SW4', engines: ['2.7', '2.8', '3.0'] }
+    ]
+  },
+  { make: 'Ford', models: [{ name: 'Ranger', engines: ['2.2', '3.0', '3.2'] }] },
+  {
+    make: 'Chevrolet',
+    models: [
+      { name: 'S10', engines: ['2.4', '2.5', '2.8'] },
+      { name: 'Trailblazer', engines: ['2.8', '3.6'] }
+    ]
+  },
   {
     make: 'Mitsubishi',
     models: [
       {
         name: 'L200',
         versions: ['GL', 'GLS', 'HPE', 'Triton', 'Outdoor', 'Savana'],
-        engines: ['2.5 Diesel', '3.2 Diesel', '2.4 Diesel']
-      }
+        engines: ['2.4', '2.5', '3.2']
+      },
+      { name: 'Pajero Dakar', engines: ['3.2'] },
+      { name: 'Pajero Full', engines: ['3.2', '3.8'] },
+      { name: 'Pajero Sport', engines: ['2.4', '2.5', '3.0'] }
     ]
   },
-  { make: 'Nissan', models: [{ name: 'Frontier', engines: ['2.3 Diesel', '2.5 Diesel'] }] },
-  { make: 'Volkswagen', models: [{ name: 'Amarok', engines: ['2.0 Turbo Diesel', '3.0 Diesel'] }] },
-  { make: 'Mercedes', models: [{ name: 'Sprinter', engines: ['2.2 Diesel', '2.1 Diesel'] }] },
-  { make: 'Iveco', models: [{ name: 'Daily', engines: ['2.3 Diesel', '3.0 Diesel', '2.8 JTD'] }] },
-  { make: 'Renault', models: [{ name: 'Master', engines: ['2.3 Diesel', '2.5 Diesel'] }] },
-  { make: 'Fiat', models: [{ name: 'Ducato', engines: ['2.3 Diesel', '2.8 JTD'] }] },
-  { make: 'Peugeot', models: [{ name: 'Boxer', engines: ['2.3 Diesel', '2.8 Diesel'] }] },
-  { make: 'Citroen', models: [{ name: 'Jumper', engines: ['2.3 Diesel', '2.8 Diesel'] }] },
-  { make: 'Hyundai', models: [{ name: 'HR', engines: ['2.5 Diesel'] }] },
-  { make: 'Kia', models: [{ name: 'Bongo', engines: ['2.5 Diesel'] }] }
+  {
+    make: 'Nissan',
+    models: [
+      { name: 'Frontier', engines: ['2.3', '2.5'] },
+      { name: 'X-Trail', engines: ['2.0', '2.5'] }
+    ]
+  },
+  { make: 'Volkswagen', models: [{ name: 'Amarok', engines: ['2.0', '3.0'] }] },
+  { make: 'Mercedes', models: [{ name: 'Sprinter', engines: ['2.1', '2.2'] }] },
+  { make: 'Iveco', models: [{ name: 'Daily', engines: ['2.3', '2.8', '3.0'] }] },
+  { make: 'Renault', models: [{ name: 'Master', engines: ['2.3', '2.5'] }] },
+  {
+    make: 'Fiat',
+    models: [
+      { name: 'Ducato', engines: ['2.3', '2.8'] },
+      { name: 'Toro', engines: ['1.3', '1.8', '2.0'] }
+    ]
+  },
+  { make: 'Peugeot', models: [{ name: 'Boxer', engines: ['2.3', '2.8'] }] },
+  { make: 'Citroen', models: [{ name: 'Jumper', engines: ['2.3', '2.8'] }] },
+  { make: 'Hyundai', models: [{ name: 'HR', engines: ['2.5'] }] },
+  { make: 'Kia', models: [{ name: 'Bongo', engines: ['2.5'] }] },
+  {
+    make: 'Jeep',
+    models: [
+      { name: 'Renegade', engines: ['1.3', '1.8', '2.0'] },
+      { name: 'Compass', engines: ['1.3', '2.0'] },
+      { name: 'Commander', engines: ['1.3', '2.0'] }
+    ]
+  },
+  {
+    make: 'Ram',
+    models: [
+      { name: 'Rampage', engines: ['2.0'] },
+      { name: '1500', engines: ['3.0', '5.7'] },
+      { name: '2500', engines: ['5.7', '6.7'] }
+    ]
+  },
+  {
+    make: 'Dodge',
+    models: [
+      { name: 'RAM', engines: ['5.2', '5.9', '6.7'] }
+    ]
+  }
 ];
 
 export const getMakeOptions = () => VEHICLE_CATALOG.map((item) => item.make);
@@ -75,7 +128,7 @@ export const getVersionsForModel = (make?: string, model?: string) =>
 
 export const getEnginesForModel = (make?: string, model?: string) => {
   const modelEngines = getModelOption(make, model)?.engines || [];
-  return Array.from(new Set([...modelEngines, ...COMMON_DIESEL_ENGINES]));
+  return Array.from(new Set([...modelEngines, ...COMMON_ENGINE_DISPLACEMENTS]));
 };
 
 export const getYearOptions = () => {
