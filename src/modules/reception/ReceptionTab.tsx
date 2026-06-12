@@ -5,7 +5,7 @@ import { Client, StaffMember, Vehicle } from '../../types';
 import { ApiError } from '../../services/api';
 import { clientService, orderService, staffService, vehicleService } from '../../services';
 import { useAuth } from '../../contexts/AuthContext';
-import { Badge, Button, Card, FormSection, Input, LoadingState, PageHeader, Select, Textarea } from '../../components/ui';
+import { Badge, Button, Card, FormSection, Input, LoadingState, PageHeader, SearchableSelect, Select, Textarea } from '../../components/ui';
 import { createDefaultChecklist } from '../../utils/checklist';
 import {
   CUSTOM_OPTION,
@@ -80,6 +80,30 @@ export default function ReceptionTab({ onNavigate }: { onNavigate: (tab: string)
   const versionOptions = getVersionsForModel(vehicleForm.make, vehicleForm.model);
   const engineOptions = getEnginesForModel(vehicleForm.make, vehicleForm.model);
   const yearOptions = getYearOptions();
+  const fuelOptions = [...FUEL_OPTIONS].sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }));
+  const makeSelectOptions = [
+    ...makeOptions.map((make) => ({ value: make, label: make })),
+    { value: CUSTOM_OPTION, label: 'Outra marca' }
+  ];
+  const modelSelectOptions = [
+    ...modelOptions.map((model) => ({ value: model.name, label: model.name })),
+    { value: CUSTOM_OPTION, label: 'Outro modelo' }
+  ];
+  const versionSelectOptions = [
+    { value: NO_VERSION_OPTION, label: 'Nao informado' },
+    ...versionOptions.map((version) => ({ value: version, label: version })),
+    { value: CUSTOM_OPTION, label: 'Personalizada' }
+  ];
+  const yearSelectOptions = [
+    { value: '', label: 'Nao informado' },
+    ...yearOptions.map((year) => ({ value: String(year), label: String(year) }))
+  ];
+  const fuelSelectOptions = fuelOptions.map((fuel) => ({ value: fuel, label: fuel }));
+  const engineSelectOptions = [
+    { value: '', label: 'Nao informado' },
+    ...engineOptions.map((engine) => ({ value: engine, label: engine })),
+    { value: CUSTOM_OPTION, label: 'Personalizada' }
+  ];
 
   useEffect(() => {
     loadInitialData();
@@ -407,65 +431,73 @@ export default function ReceptionTab({ onNavigate }: { onNavigate: (tab: string)
 
           <FormSection title="Cadastro rapido de veiculo" description="O veiculo sera vinculado ao cliente selecionado.">
             <Input label="Placa" required value={vehicleForm.plate} onChange={(event) => setVehicleForm({ ...vehicleForm, plate: normalizePlate(event.target.value) })} />
-            <Select
+            <SearchableSelect
               label="Marca"
               required
               value={vehicleForm.make}
-              onChange={(event) => setVehicleForm({
+              options={makeSelectOptions}
+              searchPlaceholder="Buscar marca..."
+              onChange={(make) => setVehicleForm({
                 ...vehicleForm,
-                make: event.target.value,
-                model: event.target.value === CUSTOM_OPTION ? CUSTOM_OPTION : '',
+                make,
+                model: make === CUSTOM_OPTION ? CUSTOM_OPTION : '',
                 version: NO_VERSION_OPTION,
                 engine: '',
                 customModel: '',
                 customVersion: '',
                 customEngine: ''
               })}
-            >
-              <option value="">Selecione</option>
-              {makeOptions.map((make) => <option key={make} value={make}>{make}</option>)}
-              <option value={CUSTOM_OPTION}>Outra marca</option>
-            </Select>
+            />
             {vehicleForm.make === CUSTOM_OPTION && (
               <Input label="Marca personalizada" required value={vehicleForm.customMake} onChange={(event) => setVehicleForm({ ...vehicleForm, customMake: event.target.value })} />
             )}
-            <Select
+            <SearchableSelect
               label="Modelo"
               required
               value={vehicleForm.model}
-              onChange={(event) => setVehicleForm({ ...vehicleForm, model: event.target.value, version: NO_VERSION_OPTION, engine: '', customModel: '', customVersion: '', customEngine: '' })}
-            >
-              <option value="">Selecione</option>
-              {modelOptions.map((model) => <option key={model.name} value={model.name}>{model.name}</option>)}
-              <option value={CUSTOM_OPTION}>Outro modelo</option>
-            </Select>
+              disabled={!vehicleForm.make}
+              options={modelSelectOptions}
+              searchPlaceholder="Buscar modelo..."
+              onChange={(model) => setVehicleForm({ ...vehicleForm, model, version: NO_VERSION_OPTION, engine: '', customModel: '', customVersion: '', customEngine: '' })}
+            />
             {vehicleForm.model === CUSTOM_OPTION && (
               <Input label="Modelo personalizado" required value={vehicleForm.customModel} onChange={(event) => setVehicleForm({ ...vehicleForm, customModel: event.target.value })} />
             )}
-            <Select label="Versao" value={vehicleForm.version} onChange={(event) => setVehicleForm({ ...vehicleForm, version: event.target.value, customVersion: '' })}>
-              <option value={NO_VERSION_OPTION}>Nao informado</option>
-              {versionOptions.map((version) => <option key={version} value={version}>{version}</option>)}
-              <option value={CUSTOM_OPTION}>Personalizada</option>
-            </Select>
+            <SearchableSelect
+              label="Versao"
+              value={vehicleForm.version}
+              options={versionSelectOptions}
+              searchPlaceholder="Buscar versao..."
+              onChange={(version) => setVehicleForm({ ...vehicleForm, version, customVersion: '' })}
+            />
             {vehicleForm.version === CUSTOM_OPTION && (
               <Input label="Versao personalizada" required value={vehicleForm.customVersion} onChange={(event) => setVehicleForm({ ...vehicleForm, customVersion: event.target.value })} />
             )}
             <div className="grid grid-cols-2 gap-3">
-              <Select label="Ano" value={vehicleForm.year} onChange={(event) => setVehicleForm({ ...vehicleForm, year: event.target.value })}>
-                <option value="">Nao informado</option>
-                {yearOptions.map((year) => <option key={year} value={year}>{year}</option>)}
-              </Select>
+              <SearchableSelect
+                label="Ano"
+                value={vehicleForm.year}
+                options={yearSelectOptions}
+                searchPlaceholder="Buscar ano..."
+                onChange={(year) => setVehicleForm({ ...vehicleForm, year })}
+              />
               <Input label="Cor" value={vehicleForm.color} onChange={(event) => setVehicleForm({ ...vehicleForm, color: event.target.value })} />
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <Select label="Combustivel" value={vehicleForm.fuel} onChange={(event) => setVehicleForm({ ...vehicleForm, fuel: event.target.value })}>
-                {FUEL_OPTIONS.map((fuel) => <option key={fuel} value={fuel}>{fuel}</option>)}
-              </Select>
-              <Select label="Motorizacao" value={vehicleForm.engine} onChange={(event) => setVehicleForm({ ...vehicleForm, engine: event.target.value, customEngine: '' })}>
-                <option value="">Nao informado</option>
-                {engineOptions.map((engine) => <option key={engine} value={engine}>{engine}</option>)}
-                <option value={CUSTOM_OPTION}>Personalizada</option>
-              </Select>
+              <SearchableSelect
+                label="Combustivel"
+                value={vehicleForm.fuel}
+                options={fuelSelectOptions}
+                searchPlaceholder="Buscar combustivel..."
+                onChange={(fuel) => setVehicleForm({ ...vehicleForm, fuel })}
+              />
+              <SearchableSelect
+                label="Motorizacao"
+                value={vehicleForm.engine}
+                options={engineSelectOptions}
+                searchPlaceholder="Buscar motorizacao..."
+                onChange={(engine) => setVehicleForm({ ...vehicleForm, engine, customEngine: '' })}
+              />
             </div>
             {vehicleForm.engine === CUSTOM_OPTION && (
               <Input label="Motorizacao personalizada" required value={vehicleForm.customEngine} onChange={(event) => setVehicleForm({ ...vehicleForm, customEngine: event.target.value })} />

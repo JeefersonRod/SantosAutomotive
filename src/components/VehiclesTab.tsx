@@ -8,6 +8,7 @@ import ImageUpload from './ImageUpload';
 import { useAuth } from '../contexts/AuthContext';
 import { ApiError } from '../services/api';
 import { clientService, vehicleService } from '../services';
+import { SearchableSelect } from './ui';
 import {
   CUSTOM_OPTION,
   FUEL_OPTIONS,
@@ -58,7 +59,28 @@ export default function VehiclesTab() {
   const versionOptions = getVersionsForModel(formData.make, formData.model);
   const engineOptions = getEnginesForModel(formData.make, formData.model);
   const yearOptions = getYearOptions();
-  const formFuelOptions = Array.from(new Set([...FUEL_OPTIONS, formData.fuel].filter(Boolean)));
+  const formYearOptions = Array.from(new Set([...yearOptions, formData.year].filter(Boolean))).sort((a, b) => Number(a) - Number(b));
+  const formFuelOptions = Array.from(new Set([...FUEL_OPTIONS, formData.fuel].filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }));
+  const makeSelectOptions = [
+    ...makeOptions.map((make) => ({ value: make, label: make })),
+    { value: CUSTOM_OPTION, label: 'Outra marca' }
+  ];
+  const modelSelectOptions = [
+    ...modelOptions.map((model) => ({ value: model.name, label: model.name })),
+    { value: CUSTOM_OPTION, label: 'Outro modelo' }
+  ];
+  const versionSelectOptions = [
+    { value: NO_VERSION_OPTION, label: 'Nao informado' },
+    ...versionOptions.map((version) => ({ value: version, label: version })),
+    { value: CUSTOM_OPTION, label: 'Personalizada' }
+  ];
+  const yearSelectOptions = formYearOptions.map((year) => ({ value: String(year), label: String(year) }));
+  const fuelSelectOptions = formFuelOptions.map((fuel) => ({ value: fuel, label: fuel }));
+  const engineSelectOptions = [
+    { value: '', label: 'Selecione' },
+    ...engineOptions.map((engine) => ({ value: engine, label: engine })),
+    { value: CUSTOM_OPTION, label: 'Personalizada' }
+  ];
 
   useEffect(() => {
     fetchVehicles();
@@ -168,6 +190,11 @@ export default function VehiclesTab() {
 
     if (!make || !model) {
       toast.error('Selecione marca e modelo do veiculo.');
+      return;
+    }
+
+    if (!formData.fuel) {
+      toast.error('Selecione o combustivel do veiculo.');
       return;
     }
 
@@ -417,24 +444,20 @@ export default function VehiclesTab() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="micro-label ml-1">Marca</label>
-                    <select
+                    <SearchableSelect
+                      label="Marca"
                       required
-                      className="w-full px-6 py-4 bg-surface-50 border border-surface-200 rounded-2xl outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary focus:bg-white transition-all font-bold appearance-none"
                       value={formData.make}
-                      onChange={(e) => {
-                        const make = e.target.value;
+                      options={makeSelectOptions}
+                      searchPlaceholder="Buscar marca..."
+                      onChange={(make) => {
                         setFormData({ ...formData, make, model: make === CUSTOM_OPTION ? CUSTOM_OPTION : '', engine: '', fuel: formData.fuel || 'Diesel' });
                         setVehicleVersion(NO_VERSION_OPTION);
                         setCustomModel('');
                         setCustomVersion('');
                         setCustomEngine('');
                       }}
-                    >
-                      <option value="">Selecione</option>
-                      {makeOptions.map((make) => <option key={make} value={make}>{make}</option>)}
-                      <option value={CUSTOM_OPTION}>Outra marca</option>
-                    </select>
+                    />
                     {formData.make === CUSTOM_OPTION && (
                       <input
                         required
@@ -446,25 +469,21 @@ export default function VehiclesTab() {
                     )}
                   </div>
                   <div className="space-y-2">
-                    <label className="micro-label ml-1">Modelo</label>
-                    <select
+                    <SearchableSelect
+                      label="Modelo"
                       required
                       disabled={!formData.make}
-                      className="w-full px-6 py-4 bg-surface-50 border border-surface-200 rounded-2xl outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary focus:bg-white transition-all font-bold appearance-none disabled:opacity-60"
                       value={formData.model}
-                      onChange={(e) => {
-                        const model = e.target.value;
+                      options={modelSelectOptions}
+                      searchPlaceholder="Buscar modelo..."
+                      onChange={(model) => {
                         setFormData({ ...formData, model, engine: '' });
                         setVehicleVersion(NO_VERSION_OPTION);
                         setCustomModel('');
                         setCustomVersion('');
                         setCustomEngine('');
                       }}
-                    >
-                      <option value="">Selecione</option>
-                      {modelOptions.map((model) => <option key={model.name} value={model.name}>{model.name}</option>)}
-                      <option value={CUSTOM_OPTION}>Outro modelo</option>
-                    </select>
+                    />
                     {formData.model === CUSTOM_OPTION && (
                       <input
                         required
@@ -479,19 +498,16 @@ export default function VehiclesTab() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="micro-label ml-1">Versao</label>
-                    <select
-                      className="w-full px-6 py-4 bg-surface-50 border border-surface-200 rounded-2xl outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary focus:bg-white transition-all font-bold appearance-none"
+                    <SearchableSelect
+                      label="Versao"
                       value={vehicleVersion}
-                      onChange={(e) => {
-                        setVehicleVersion(e.target.value);
+                      options={versionSelectOptions}
+                      searchPlaceholder="Buscar versao..."
+                      onChange={(version) => {
+                        setVehicleVersion(version);
                         setCustomVersion('');
                       }}
-                    >
-                      <option value={NO_VERSION_OPTION}>Nao informado</option>
-                      {versionOptions.map((version) => <option key={version} value={version}>{version}</option>)}
-                      <option value={CUSTOM_OPTION}>Personalizada</option>
-                    </select>
+                    />
                     {vehicleVersion === CUSTOM_OPTION && (
                       <input
                         required
@@ -506,17 +522,14 @@ export default function VehiclesTab() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="micro-label ml-1">Ano</label>
-                    <div className="relative group">
-                      <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-300 group-focus-within:text-brand-primary transition-colors" />
-                      <select
-                        className="w-full pl-12 pr-4 py-4 bg-surface-50 border border-surface-200 rounded-2xl outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary focus:bg-white transition-all font-bold data-value" 
-                        value={formData.year} 
-                        onChange={e => setFormData({...formData, year: parseInt(e.target.value)})}
-                      >
-                        {yearOptions.map((year) => <option key={year} value={year}>{year}</option>)}
-                      </select>
-                    </div>
+                    <SearchableSelect
+                      label="Ano"
+                      value={formData.year}
+                      options={yearSelectOptions}
+                      searchPlaceholder="Buscar ano..."
+                      icon={<Calendar className="w-5 h-5" />}
+                      onChange={(year) => setFormData({...formData, year: parseInt(year)})}
+                    />
                   </div>
                   <div className="space-y-2">
                     <label className="micro-label ml-1">Placa</label>
@@ -552,40 +565,31 @@ export default function VehiclesTab() {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <label className="micro-label ml-1">Combustivel</label>
-                    <div className="relative group">
-                      <Fuel className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-300 group-focus-within:text-brand-primary transition-colors" />
-                      <select
-                        required
-                        className="w-full pl-12 pr-4 py-4 bg-surface-50 border border-surface-200 rounded-2xl outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary focus:bg-white transition-all font-bold appearance-none"
-                        value={formData.fuel}
-                        onChange={e => setFormData({...formData, fuel: e.target.value})}
-                      >
-                        <option value="">Selecione</option>
-                        {formFuelOptions.map((fuel) => <option key={fuel} value={fuel}>{fuel}</option>)}
-                      </select>
-                    </div>
+                    <SearchableSelect
+                      label="Combustivel"
+                      required
+                      value={formData.fuel}
+                      options={fuelSelectOptions}
+                      searchPlaceholder="Buscar combustivel..."
+                      icon={<Fuel className="w-5 h-5" />}
+                      onChange={(fuel) => setFormData({...formData, fuel})}
+                    />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="micro-label ml-1">Motorizacao</label>
-                    <div className="relative group">
-                      <Gauge className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-300 group-focus-within:text-brand-primary transition-colors" />
-                      <select
-                        className="w-full pl-12 pr-4 py-4 bg-surface-50 border border-surface-200 rounded-2xl outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary focus:bg-white transition-all font-bold appearance-none data-value"
-                        value={formData.engine}
-                        onChange={(e) => {
-                          setFormData({ ...formData, engine: e.target.value });
-                          setCustomEngine('');
-                        }}
-                      >
-                        <option value="">Selecione</option>
-                        {engineOptions.map((engine) => <option key={engine} value={engine}>{engine}</option>)}
-                        <option value={CUSTOM_OPTION}>Personalizada</option>
-                      </select>
-                    </div>
+                    <SearchableSelect
+                      label="Motorizacao"
+                      value={formData.engine}
+                      options={engineSelectOptions}
+                      searchPlaceholder="Buscar motorizacao..."
+                      icon={<Gauge className="w-5 h-5" />}
+                      onChange={(engine) => {
+                        setFormData({ ...formData, engine });
+                        setCustomEngine('');
+                      }}
+                    />
                     {formData.engine === CUSTOM_OPTION && (
                       <input
                         required

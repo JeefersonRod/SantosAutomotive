@@ -134,8 +134,9 @@ export default function ServiceOrderPrintView({ order }: { order: ServiceOrder }
                 <div className="print-doc-tests">
                   {items.map((summary, index) => (
                     <div key={`${summary.title}-${index}`}>
-                      <strong>{summary.title}</strong>
-                      {summary.category && <span>{summary.category}</span>}
+                      <strong>{summary.system}</strong>
+                      <span>{summary.component}</span>
+                      <span>Teste: {summary.title}</span>
                       <span>Resultado: {summary.status}</span>
                       {summary.lines.slice(0, 8).map((line) => <small key={line}>{line}</small>)}
                       {summary.lines.length > 8 && <small>+ {summary.lines.length - 8} campos preenchidos</small>}

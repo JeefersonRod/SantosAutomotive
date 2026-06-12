@@ -376,6 +376,10 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
   };
 
   const renderDiagnosticField = (field: DiagnosticField) => {
+    if (field.key === 'rpm' && diagnosticValues.test_condition !== 'RPM informado') {
+      return null;
+    }
+
     const value = diagnosticValues[field.key] || '';
     const baseClass = 'w-full px-3 py-2 bg-white border border-surface-200 rounded-xl outline-none focus:ring-2 focus:ring-brand-primary/20 text-sm font-medium';
 
@@ -1107,7 +1111,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
                   </div>
 
                   <div className="space-y-3">
-                    <h3 className="micro-label">Modelos de diagnostico guiado</h3>
+                    <h3 className="micro-label">Sistemas do diagnostico guiado</h3>
                     <div className="flex gap-2 overflow-x-auto pb-1">
                       {diagnosticCategories.map((category) => (
                         <button
@@ -1115,7 +1119,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
                           type="button"
                           onClick={() => {
                             setSelectedDiagnosticCategory(category);
-                            const firstTemplate = DIAGNOSTIC_TEMPLATES.find((template) => template.category === category);
+                            const firstTemplate = DIAGNOSTIC_TEMPLATES.find((template) => template.system === category);
                             if (firstTemplate) loadDiagnosticTemplate(firstTemplate.key);
                           }}
                           className={`whitespace-nowrap px-3 py-2 rounded-xl text-[11px] font-bold border transition-all ${
@@ -1129,7 +1133,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
                       ))}
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {DIAGNOSTIC_TEMPLATES.filter((template) => template.category === selectedDiagnosticCategory).map((template) => (
+                      {DIAGNOSTIC_TEMPLATES.filter((template) => template.system === selectedDiagnosticCategory).map((template) => (
                         <button
                           key={template.key}
                           type="button"
@@ -1141,7 +1145,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
                           }`}
                         >
                           <span className="block text-xs font-black">{template.shortName}</span>
-                          <span className="block text-[11px] font-semibold text-surface-400">{template.name}</span>
+                          <span className="block text-[11px] font-semibold text-surface-400">{template.component}</span>
                         </button>
                       ))}
                     </div>
@@ -1151,7 +1155,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                       <div>
                         <h3 className="text-base font-display font-bold text-surface-900">{selectedDiagnosticTemplate.name}</h3>
-                        <p className="text-xs font-medium text-surface-500">{selectedDiagnosticTemplate.category}</p>
+                        <p className="text-xs font-medium text-surface-500">{selectedDiagnosticTemplate.system} / {selectedDiagnosticTemplate.component}</p>
                       </div>
                       <select
                         disabled={!canEditDiagnostics}
@@ -1243,7 +1247,9 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
                                     <CheckCircle2 className="w-4 h-4" />
                                     {summary.title}
                                   </span>
-                                  {summary.category && <p className="text-[11px] font-bold text-surface-400 uppercase mt-1">{summary.category}</p>}
+                                  <p className="text-[11px] font-bold text-surface-400 uppercase mt-1">
+                                    {summary.system} / {summary.component}
+                                  </p>
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <span className={`px-2.5 py-1 rounded-full border text-[10px] font-black uppercase ${getStatusBadgeClass(test.result)}`}>

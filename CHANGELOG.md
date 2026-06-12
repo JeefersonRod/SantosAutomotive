@@ -2,6 +2,9 @@
 
 ## Atual
 
+- Diagnostico Guiado V2 reorganizado por sistema, componente, teste e resultado, mantendo compatibilidade com testes antigos.
+- Impressao da O.S. passa a exibir diagnosticos como Sistema, Componente, Teste e Resultado.
+- Frota e Atendimento ganharam selects pesquisaveis para marca, modelo, versao, ano, combustivel e motorizacao, com ordenacao consistente.
 - Catalogo tecnico da Frota ampliado com Toro, Jeep Renegade/Compass/Commander, Ram, Dodge RAM, SW4, Trailblazer, Pajero e X-Trail.
 - Motorizacao da Frota corrigida para representar apenas cilindrada/deslocamento, sem repetir combustivel ou tecnologia.
 - Iniciada Fase 1 da padronizacao tecnica da Frota com catalogo local focado em diesel leve, picapes e utilitarios.

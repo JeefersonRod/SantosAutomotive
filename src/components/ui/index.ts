@@ -12,6 +12,7 @@ export * from './MetricCard';
 export * from './Modal';
 export * from './PageHeader';
 export * from './SectionHeader';
+export * from './SearchableSelect';
 export * from './Select';
 export * from './StatusBadge';
 export * from './Tabs';

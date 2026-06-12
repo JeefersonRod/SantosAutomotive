@@ -115,26 +115,34 @@ export const VEHICLE_CATALOG: VehicleMakeOption[] = [
   }
 ];
 
-export const getMakeOptions = () => VEHICLE_CATALOG.map((item) => item.make);
+const sortText = <T extends string>(items: readonly T[]) =>
+  [...items].sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true, sensitivity: 'base' }));
+
+const sortEngines = (items: string[]) =>
+  [...items].sort((a, b) => Number.parseFloat(a) - Number.parseFloat(b) || a.localeCompare(b, 'pt-BR', { numeric: true }));
+
+export const getMakeOptions = () => sortText(VEHICLE_CATALOG.map((item) => item.make));
 
 export const getModelsForMake = (make?: string) =>
-  VEHICLE_CATALOG.find((item) => item.make === make)?.models || [];
+  [...(VEHICLE_CATALOG.find((item) => item.make === make)?.models || [])].sort((a, b) =>
+    a.name.localeCompare(b.name, 'pt-BR', { numeric: true, sensitivity: 'base' })
+  );
 
 export const getModelOption = (make?: string, model?: string) =>
   getModelsForMake(make).find((item) => item.name === model);
 
 export const getVersionsForModel = (make?: string, model?: string) =>
-  getModelOption(make, model)?.versions || [];
+  sortText(getModelOption(make, model)?.versions || []);
 
 export const getEnginesForModel = (make?: string, model?: string) => {
   const modelEngines = getModelOption(make, model)?.engines || [];
-  return Array.from(new Set([...modelEngines, ...COMMON_ENGINE_DISPLACEMENTS]));
+  return sortEngines(Array.from(new Set([...modelEngines, ...COMMON_ENGINE_DISPLACEMENTS])));
 };
 
 export const getYearOptions = () => {
-  const nextYear = new Date().getFullYear() + 1;
+  const currentYear = new Date().getFullYear();
   const years: number[] = [];
-  for (let year = nextYear; year >= 1980; year -= 1) {
+  for (let year = 1980; year <= currentYear; year += 1) {
     years.push(year);
   }
   return years;

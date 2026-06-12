@@ -18,7 +18,13 @@ export interface DiagnosticTemplate {
   key: string;
   name: string;
   category: string;
+  system: string;
+  component: string;
   shortName: string;
+  aliases?: string[];
+  relatedSystems?: string[];
+  relatedComponents?: string[];
+  possibleDtcs?: string[];
   fields: DiagnosticField[];
 }
 
@@ -53,203 +59,329 @@ export const TECHNICAL_SYMPTOM_OPTIONS = [
   'Revisao preventiva / sem queixa'
 ] as const;
 
+const TEST_CONDITION_FIELDS: DiagnosticField[] = [
+  {
+    key: 'test_condition',
+    label: 'Condicao do teste',
+    type: 'select',
+    options: ['chave ligada', 'marcha lenta', 'RPM informado']
+  },
+  { key: 'rpm', label: 'RPM informado', type: 'number', unit: 'RPM', placeholder: 'Preencher quando a condicao for RPM informado' }
+];
+
+const PANEL_LIGHT_FIELDS: DiagnosticField[] = [
+  {
+    key: 'panel_lights',
+    label: 'Luzes de painel como evidencia tecnica',
+    type: 'select',
+    options: ['injecao', 'ABS', 'airbag', 'EPS', 'bateria', 'temperatura', 'outras', 'nenhuma']
+  },
+  { key: 'panel_light_notes', label: 'Observacao das luzes de painel', type: 'textarea' }
+];
+
+const withCondition = (fields: DiagnosticField[]) => [...TEST_CONDITION_FIELDS, ...fields];
+
 export const DIAGNOSTIC_TEMPLATES: DiagnosticTemplate[] = [
   {
-    key: 'battery_charging',
-    name: 'Bateria e sistema de carga',
-    shortName: 'Bateria/Carga',
-    category: 'Eletrica/Bateria',
+    key: 'electrical_power_supply',
+    name: 'Sistema eletrico e alimentacao',
+    shortName: 'Eletrico base',
+    category: 'Sistema Eletrico e Alimentacao',
+    system: 'Sistema Eletrico e Alimentacao',
+    component: 'Bateria, alternador, aterramentos e cabos',
+    aliases: ['Bateria e sistema de carga'],
+    relatedSystems: ['partida e carga', 'alimentacao ECU'],
+    relatedComponents: ['bateria', 'alternador', 'aterramentos', 'cabos', 'alimentacao ECU'],
     fields: [
-      { key: 'battery_type', label: 'Tipo de bateria', type: 'select', options: ['comum', 'EFB', 'AGM'] },
-      { key: 'visual_inspection', label: 'Inspecao visual da bateria', type: 'textarea', placeholder: 'Bornes, fixacao, vazamento, caixa, zinabre...' },
-      { key: 'battery_voltage', label: 'Tensao da bateria', type: 'number', unit: 'V', reference: 'Esperado: 12,6V a 12,8V' },
-      { key: 'cranking_drop', label: 'Queda durante partida', type: 'number', unit: 'V', reference: 'Minimo recomendado: 10,5V' },
-      { key: 'scanner_voltage', label: 'Tensao processada no scanner', type: 'number', unit: 'V' },
-      { key: 'alternator_charge', label: 'Carga do alternador', type: 'select', options: ['comum', 'pilotado'] },
-      { key: 'cca_standard', label: 'CCA norma', type: 'text', placeholder: 'SAE, EN, DIN...' },
-      { key: 'cca_value', label: 'CCA valor', type: 'number' },
-      { key: 'soc', label: 'SOC', type: 'number', unit: '%', reference: 'Minimo: 70%' },
-      { key: 'soh', label: 'SOH', type: 'number', unit: '%', reference: 'Minimo: 70%' },
-      { key: 'resistance', label: 'Resistencia interna', type: 'number', unit: 'mOhm' },
-      { key: 'negative_cable_ddp', label: 'DDP cabo negativo na partida', type: 'number', unit: 'mV', reference: 'Maximo: 300 mV' },
-      { key: 'positive_cable_ddp', label: 'DDP cabo positivo na partida', type: 'number', unit: 'mV', reference: 'Maximo: 300 mV' },
-      { key: 'cranking_current', label: 'Corrente de partida', type: 'number', unit: 'A' },
-      { key: 'charging_current', label: 'Corrente de carga', type: 'number', unit: 'A' }
+      ...PANEL_LIGHT_FIELDS,
+      { key: 'battery_rest_voltage', label: 'Tensao em repouso', type: 'number', unit: 'V', reference: 'Esperado: 12,6V a 12,8V' },
+      { key: 'cranking_voltage', label: 'Tensao durante partida', type: 'number', unit: 'V', reference: 'Minimo recomendado: 10,5V' },
+      { key: 'charging_voltage', label: 'Tensao de carga', type: 'number', unit: 'V' },
+      { key: 'voltage_drop', label: 'Queda de tensao', type: 'number', unit: 'mV' },
+      { key: 'current', label: 'Corrente medida', type: 'number', unit: 'A' },
+      { key: 'ground_notes', label: 'Aterramentos e cabos', type: 'textarea', placeholder: 'Bornes, zinabre, aperto, oxidacao, cabo positivo/negativo...' },
+      { key: 'ecu_power_notes', label: 'Alimentacao ECU', type: 'textarea' },
+      { key: 'technical_notes', label: 'Observacoes do sistema eletrico', type: 'textarea' }
     ]
   },
   {
-    key: 'fuel_af',
-    name: 'Combustivel e A/F',
-    shortName: 'Combustivel A/F',
-    category: 'Combustivel/A/F',
-    fields: [
-      { key: 'fuel_type', label: 'Tipo de combustivel', type: 'select', options: ['alcool', 'gasolina', 'mistura'] },
-      { key: 'scanner_af', label: 'Relacao A/F no scanner', type: 'text', placeholder: 'Ex: 13,2:1' },
-      { key: 'reference_af', label: 'Referencia A/F', type: 'select', options: ['13,2:1', '9,0:1', 'outro'] },
-      { key: 'fault_codes', label: 'Codigos de falha', type: 'textarea', placeholder: 'DTCs encontrados...' },
-      { key: 'recall', label: 'Recall/verificacao tecnica', type: 'textarea' }
-    ]
-  },
-  {
-    key: 'fuel_supply',
-    name: 'Alimentacao de combustivel',
-    shortName: 'Alimentacao',
-    category: 'Alimentacao',
-    fields: [
-      { key: 'pump_voltage', label: 'Alimentacao da bomba comum', type: 'number', unit: 'V' },
-      { key: 'pump_pwm', label: 'Bomba pilotada ciclo PWM', type: 'number', unit: '%' },
-      { key: 'pressure', label: 'Pressao', type: 'number', unit: 'BAR' },
+    key: 'fuel_low_pressure',
+    name: 'Alimentacao de combustivel - baixa pressao',
+    shortName: 'Baixa pressao',
+    category: 'Sistema de Alimentacao de Combustivel',
+    system: 'Sistema de Alimentacao de Combustivel',
+    component: 'Bomba baixa, filtro e linha',
+    aliases: ['Alimentacao de combustivel'],
+    relatedComponents: ['bomba baixa', 'filtro combustivel', 'linha de combustivel'],
+    possibleDtcs: ['P0087'],
+    fields: withCondition([
+      { key: 'pump_voltage', label: 'Alimentacao da bomba baixa', type: 'number', unit: 'V' },
+      { key: 'pump_pwm', label: 'Comando/PWM da bomba', type: 'number', unit: '%' },
+      { key: 'low_pressure', label: 'Pressao de baixa', type: 'number', unit: 'BAR' },
       { key: 'flow', label: 'Vazao', type: 'number', unit: 'L/H' },
-      { key: 'max_pressure', label: 'Pressao maxima', type: 'number', unit: 'BAR' },
+      { key: 'filter_condition', label: 'Filtro combustivel', type: 'select', options: ['ok', 'restrito', 'contaminado', 'nao verificado'] },
       { key: 'tightness', label: 'Estanqueidade', type: 'select', options: ['sim', 'nao', 'nao verificado'] },
-      { key: 'pump_current', label: 'Corrente da bomba', type: 'number', unit: 'A' },
+      { key: 'notes', label: 'Observacoes', type: 'textarea' }
+    ])
+  },
+  {
+    key: 'fuel_high_pressure',
+    name: 'Alimentacao de combustivel - alta pressao',
+    shortName: 'Alta pressao',
+    category: 'Sistema de Alimentacao de Combustivel',
+    system: 'Sistema de Alimentacao de Combustivel',
+    component: 'Bomba alta, rail, sensor e regulador',
+    relatedComponents: ['bomba alta', 'rail', 'sensor pressao rail', 'regulador'],
+    possibleDtcs: ['P0087', 'P0190', 'P0191'],
+    fields: withCondition([
+      { key: 'rail_pressure_target', label: 'Pressao rail desejada', type: 'number', unit: 'BAR' },
+      { key: 'rail_pressure_actual', label: 'Pressao rail medida', type: 'number', unit: 'BAR' },
+      { key: 'rail_sensor_signal', label: 'Sinal sensor pressao rail', type: 'number', unit: 'V' },
+      { key: 'regulator_command', label: 'Comando regulador', type: 'text', placeholder: 'PWM, corrente, duty...' },
+      { key: 'leak_return', label: 'Retorno/vazamento dos injetores', type: 'textarea' },
+      { key: 'notes', label: 'Observacoes', type: 'textarea' }
+    ])
+  },
+  {
+    key: 'fuel_injectors',
+    name: 'Injetores de combustivel',
+    shortName: 'Injetores',
+    category: 'Sistema de Alimentacao de Combustivel',
+    system: 'Sistema de Alimentacao de Combustivel',
+    component: 'Injetores',
+    relatedComponents: ['injetores'],
+    fields: withCondition([
       { key: 'injection_time', label: 'Tempo de injecao', type: 'number', unit: 'ms' },
       { key: 'injector_voltage', label: 'Alimentacao do injetor', type: 'number', unit: 'V' },
-      { key: 'spray_pattern', label: 'Formato do leque do injetor', type: 'text' },
       { key: 'injector_resistance', label: 'Resistencia do injetor', type: 'text' },
-      { key: 'canister_seal', label: 'Valvula canister vedacao', type: 'text' },
-      { key: 'canister_pwm', label: 'Canister tensao/PWM', type: 'text' },
-      { key: 'flange_inspection', label: 'Inspecao flange/resistencia', type: 'textarea' }
-    ]
+      { key: 'spray_pattern', label: 'Padrao de pulverizacao/leque', type: 'text' },
+      { key: 'balance_test', label: 'Teste de balanceamento/retorno', type: 'textarea' },
+      { key: 'notes', label: 'Observacoes', type: 'textarea' }
+    ])
   },
   {
-    key: 'map_maf_air_mass',
-    name: 'MAP / MAF / Massa de ar',
-    shortName: 'MAP/MAF',
-    category: 'MAP/MAF',
-    fields: [
-      { key: 'sensor_type', label: 'Tipo', type: 'select', options: ['MAP', 'MAF analogico', 'MAF digital'] },
+    key: 'air_map',
+    name: 'Admissao - MAP',
+    shortName: 'MAP',
+    category: 'Sistema de Admissao',
+    system: 'Sistema de Admissao',
+    component: 'MAP',
+    aliases: ['MAP / MAF / Massa de ar'],
+    relatedComponents: ['MAP'],
+    possibleDtcs: ['P0106'],
+    fields: withCondition([
       { key: 'map_key_mbar', label: 'MAP chave ligada scanner', type: 'number', unit: 'mbar' },
       { key: 'map_key_volts', label: 'MAP chave ligada', type: 'number', unit: 'V' },
       { key: 'map_idle_mbar', label: 'MAP marcha lenta absoluta', type: 'number', unit: 'mbar' },
       { key: 'map_idle_volts', label: 'MAP marcha lenta', type: 'number', unit: 'V' },
       { key: 'map_accel_volts', label: 'MAP aceleracao variacao', type: 'number', unit: 'V' },
-      { key: 'map_accel_mbar', label: 'MAP aceleracao', type: 'number', unit: 'mbar' },
       { key: 'barometric_pressure', label: 'Pressao barometrica local', type: 'number', unit: 'mbar' },
-      { key: 'reading_table', label: 'Tabela de leitura', type: 'textarea', placeholder: 'Sensor / chave ligada / marcha lenta / aceleracao' }
-    ]
+      { key: 'notes', label: 'Observacoes', type: 'textarea' }
+    ])
   },
   {
-    key: 'temperature_sensors',
-    name: 'Sensores de temperatura',
-    shortName: 'Temperaturas',
-    category: 'Sensores',
-    fields: [
-      { key: 'ect_cold', label: 'Agua ECT frio', type: 'number', unit: 'C' },
-      { key: 'ect_hot', label: 'Agua ECT quente', type: 'number', unit: 'C' },
-      { key: 'iat_cold', label: 'Ar IAT frio', type: 'number', unit: 'C' },
-      { key: 'iat_hot', label: 'Ar IAT quente', type: 'number', unit: 'C' },
-      { key: 'external_cold', label: 'Sensor externo frio', type: 'number', unit: 'C' },
-      { key: 'external_hot', label: 'Sensor externo quente', type: 'number', unit: 'C' },
-      { key: 'fuel_cold', label: 'Combustivel frio', type: 'number', unit: 'C' },
-      { key: 'fuel_hot', label: 'Combustivel quente', type: 'number', unit: 'C' },
-      { key: 'cold_difference', label: 'Diferenca fase fria', type: 'number', unit: 'C', reference: 'Maximo recomendado: 3 C' }
-    ]
+    key: 'air_maf_iat',
+    name: 'Admissao - MAF e IAT',
+    shortName: 'MAF/IAT',
+    category: 'Sistema de Admissao',
+    system: 'Sistema de Admissao',
+    component: 'MAF e IAT',
+    aliases: ['Sensores de temperatura'],
+    relatedComponents: ['MAF', 'IAT'],
+    possibleDtcs: ['P0101', 'P0110'],
+    fields: withCondition([
+      { key: 'maf_type', label: 'Tipo MAF', type: 'select', options: ['analogico', 'digital', 'nao aplicado'] },
+      { key: 'maf_reading', label: 'Leitura MAF', type: 'text', placeholder: 'g/s, kg/h, Hz ou V' },
+      { key: 'iat_cold', label: 'IAT frio', type: 'number', unit: 'C' },
+      { key: 'iat_hot', label: 'IAT quente', type: 'number', unit: 'C' },
+      { key: 'cold_difference', label: 'Diferenca fase fria', type: 'number', unit: 'C', reference: 'Maximo recomendado: 3 C' },
+      { key: 'notes', label: 'Observacoes', type: 'textarea' }
+    ])
   },
   {
-    key: 'ckp_cmp',
-    name: 'CKP / CMP',
-    shortName: 'CKP/CMP',
-    category: 'Sensores',
-    fields: [
-      { key: 'sensor', label: 'Sensor avaliado', type: 'select', options: ['CKP rotacao', 'CMP fase', 'CKP e CMP'] },
-      { key: 'sensor_type', label: 'Tipo', type: 'select', options: ['indutivo', 'hall', 'magneto resistivo'] },
+    key: 'air_leaks_filter',
+    name: 'Admissao - filtro, mangueiras e vazamentos',
+    shortName: 'Vazamentos ar',
+    category: 'Sistema de Admissao',
+    system: 'Sistema de Admissao',
+    component: 'Filtro de ar, mangueiras, vazamentos e coletor',
+    relatedComponents: ['filtro de ar', 'mangueiras', 'vazamentos', 'coletor'],
+    fields: withCondition([
+      { key: 'air_filter_condition', label: 'Filtro de ar', type: 'select', options: ['ok', 'sujo', 'restrito', 'ausente', 'nao verificado'] },
+      { key: 'hoses_condition', label: 'Mangueiras/admissao', type: 'select', options: ['ok', 'ressecadas', 'soltas', 'trincadas', 'nao verificado'] },
+      { key: 'leak_test', label: 'Teste de vazamento/entrada falsa', type: 'textarea' },
+      { key: 'manifold_notes', label: 'Coletor', type: 'textarea' }
+    ])
+  },
+  {
+    key: 'cooling_system',
+    name: 'Sistema de arrefecimento',
+    shortName: 'Arrefecimento',
+    category: 'Sistema de Arrefecimento',
+    system: 'Sistema de Arrefecimento',
+    component: 'ECT, valvula, ventoinha, bomba e fluido',
+    aliases: ['Sensores de temperatura'],
+    relatedComponents: ['ECT', 'valvula termostatica', 'ventoinha', "bomba d'agua", 'reservatorio', 'pressao do sistema', 'tipo do fluido'],
+    fields: withCondition([
+      { key: 'ect_cold', label: 'ECT frio', type: 'number', unit: 'C' },
+      { key: 'ect_hot', label: 'ECT quente', type: 'number', unit: 'C' },
+      { key: 'fan_activation', label: 'Acionamento da ventoinha', type: 'text' },
+      { key: 'thermostatic_valve', label: 'Valvula termostatica', type: 'select', options: ['ok', 'travada aberta', 'travada fechada', 'nao verificada'] },
+      { key: 'system_pressure', label: 'Pressao do sistema', type: 'number', unit: 'BAR' },
+      { key: 'fluid_type', label: 'Tipo/condicao do fluido', type: 'text' },
+      { key: 'reservoir_notes', label: 'Reservatorio e vazamentos', type: 'textarea' }
+    ])
+  },
+  {
+    key: 'ckp_sensor',
+    name: 'CKP - sensor de rotacao',
+    shortName: 'CKP',
+    category: 'Sistema CKP/CMP e Sincronismo',
+    system: 'Sistema CKP/CMP e Sincronismo',
+    component: 'CKP',
+    aliases: ['CKP / CMP'],
+    relatedComponents: ['CKP', 'roda fonica'],
+    possibleDtcs: ['P0335'],
+    fields: withCondition([
+      { key: 'sensor_type', label: 'Tipo CKP', type: 'select', options: ['indutivo', 'hall', 'magneto resistivo'] },
       { key: 'power_supply', label: 'Alimentacao', type: 'text' },
       { key: 'resistance', label: 'Resistencia', type: 'text' },
-      { key: 'reference', label: 'Referencia', type: 'text' },
       { key: 'scanner_rpm', label: 'RPM scanner', type: 'number', unit: 'RPM' },
-      { key: 'sync_notes', label: 'Sincronismo/observacao de sinal', type: 'textarea' }
-    ]
+      { key: 'signal_notes', label: 'Sinal e roda fonica', type: 'textarea' }
+    ])
   },
   {
-    key: 'throttle_pedal_tbi',
-    name: 'Sistema de aceleracao / Pedal / TBI',
-    shortName: 'Pedal/TBI',
-    category: 'Aceleracao/TBI',
-    fields: [
+    key: 'cmp_sensor',
+    name: 'CMP - sensor de fase',
+    shortName: 'CMP',
+    category: 'Sistema CKP/CMP e Sincronismo',
+    system: 'Sistema CKP/CMP e Sincronismo',
+    component: 'CMP',
+    aliases: ['CKP / CMP'],
+    relatedComponents: ['CMP', 'sincronismo'],
+    possibleDtcs: ['P0340'],
+    fields: withCondition([
+      { key: 'sensor_type', label: 'Tipo CMP', type: 'select', options: ['indutivo', 'hall', 'magneto resistivo'] },
+      { key: 'power_supply', label: 'Alimentacao', type: 'text' },
+      { key: 'reference', label: 'Referencia', type: 'text' },
+      { key: 'phase_signal', label: 'Sinal de fase', type: 'textarea' },
+      { key: 'sync_notes', label: 'Sincronismo CKP/CMP', type: 'textarea' }
+    ])
+  },
+  {
+    key: 'pedal_app',
+    name: 'Pedal APP',
+    shortName: 'Pedal APP',
+    category: 'Sistema Pedal / TBI',
+    system: 'Sistema Pedal / TBI',
+    component: 'APP (pedal)',
+    aliases: ['Sistema de aceleracao / Pedal / TBI'],
+    relatedComponents: ['APP', 'pedal'],
+    fields: withCondition([
       { key: 'track_1_power', label: 'Alimentacao pista 1', type: 'number', unit: 'V' },
       { key: 'track_2_power', label: 'Alimentacao pista 2', type: 'number', unit: 'V' },
-      { key: 'track_1_ground', label: 'Massa pista 1', type: 'text' },
-      { key: 'track_2_ground', label: 'Massa pista 2', type: 'text' },
       { key: 'track_1_signal', label: 'Sinal pista 1', type: 'number', unit: 'V' },
-      { key: 'track_2_signal', label: 'Sinal pista 2', type: 'number', unit: 'V', reference: 'TBI: pista 1 + pista 2 proximo de 5V' },
-      { key: 'ford_pwm', label: 'Sinal PWM Ford', type: 'number', unit: '%' },
-      { key: 'pedal', label: 'Pedal do acelerador', type: 'textarea' },
-      { key: 'tbi', label: 'Corpo de borboleta TBI', type: 'textarea' },
-      { key: 'ecu_processing', label: 'UCE processa sinal', type: 'select', options: ['sim', 'nao'] },
-      { key: 'coherence', label: 'Coerencia do pedal/TBI', type: 'textarea' }
-    ]
+      { key: 'track_2_signal', label: 'Sinal pista 2', type: 'number', unit: 'V' },
+      { key: 'pedal_coherence', label: 'Coerencia do pedal', type: 'textarea' }
+    ])
+  },
+  {
+    key: 'tbi_throttle',
+    name: 'TBI - corpo de borboleta',
+    shortName: 'TBI',
+    category: 'Sistema Pedal / TBI',
+    system: 'Sistema Pedal / TBI',
+    component: 'TPS, corpo de borboleta e motor eletronico',
+    aliases: ['Sistema de aceleracao / Pedal / TBI'],
+    relatedComponents: ['TPS', 'corpo de borboleta', 'motor do corpo eletronico'],
+    fields: withCondition([
+      { key: 'tps_1_signal', label: 'Sinal TPS 1', type: 'number', unit: 'V' },
+      { key: 'tps_2_signal', label: 'Sinal TPS 2', type: 'number', unit: 'V', reference: 'Soma das pistas proxima de 5V quando aplicavel' },
+      { key: 'motor_command', label: 'Comando do motor TBI', type: 'text' },
+      { key: 'tbi_cleaning_condition', label: 'Condicao mecanica/carbonizacao', type: 'textarea' },
+      { key: 'ecu_processing', label: 'ECU processa sinal', type: 'select', options: ['sim', 'nao', 'inconclusivo'] }
+    ])
   },
   {
     key: 'ignition_system',
     name: 'Sistema de ignicao',
     shortName: 'Ignicao',
-    category: 'Ignicao',
-    fields: [
+    category: 'Sistema de Ignicao',
+    system: 'Sistema de Ignicao',
+    component: 'Bobinas, velas, cabos e misfire',
+    relatedComponents: ['bobinas', 'velas', 'cabos', 'misfire'],
+    fields: withCondition([
       { key: 'primary_coil', label: 'Bobina primario', type: 'text' },
       { key: 'secondary_coil', label: 'Bobina secundario', type: 'text' },
       { key: 'power_supply', label: 'Alimentacao', type: 'number', unit: 'V' },
       { key: 'current', label: 'Corrente', type: 'number', unit: 'A' },
-      { key: 'trigger_voltage', label: 'Tensao de disparo', type: 'text', placeholder: 'V/KV' },
-      { key: 'charge_time', label: 'Tempo de carregamento', type: 'text' },
       { key: 'burn_time', label: 'Tempo de queima', type: 'text' },
-      { key: 'residual', label: 'Residual', type: 'select', options: ['sim', 'nao'] },
-      { key: 'pulse', label: 'Pulso', type: 'select', options: ['positivo', 'negativo'] },
-      { key: 'spark_wire', label: 'Cabo de vela', type: 'text' },
-      { key: 'st_terminal', label: 'ST supressor no terminal', type: 'text' },
-      { key: 'sc_wire', label: 'SC supressor no cabo', type: 'text' },
-      { key: 'resistance_reference', label: 'Referencia resistencia', type: 'text', placeholder: 'VW/Audi 6 kOhm; 2,5 a 7,5 kOhm' },
-      { key: 'misfire', label: 'Falha de combustao', type: 'select', options: ['sim', 'nao'] },
-      { key: 'cylinders', label: 'Cilindros P0301 a P0306', type: 'text' },
-      { key: 'spark_plugs', label: 'Velas de ignicao', type: 'textarea', placeholder: 'Aplicacao, torque, flashing over, trincas, gap...' }
-    ]
+      { key: 'spark_wire', label: 'Cabos', type: 'text' },
+      { key: 'spark_plugs', label: 'Velas', type: 'textarea', placeholder: 'Aplicacao, torque, trincas, gap...' },
+      { key: 'misfire', label: 'Misfire/falha de combustao', type: 'select', options: ['sim', 'nao', 'inconclusivo'] },
+      { key: 'cylinders', label: 'Cilindros envolvidos', type: 'text' }
+    ])
   },
   {
-    key: 'lambda_sensor',
-    name: 'Sonda lambda',
+    key: 'emissions_lambda',
+    name: 'Emissoes - sonda lambda',
     shortName: 'Sonda lambda',
-    category: 'Sonda Lambda',
-    fields: [
-      { key: 'identification', label: 'Identificacao correta', type: 'textarea', placeholder: 'Pre/pos, estreita/larga, finger, planar, X-Four, AF, 5/5, 5/6...' },
+    category: 'Sistema de Emissoes',
+    system: 'Sistema de Emissoes',
+    component: 'Sonda lambda e aquecedor',
+    aliases: ['Sonda lambda'],
+    relatedComponents: ['sonda lambda', 'aquecedor da sonda'],
+    fields: withCondition([
+      { key: 'identification', label: 'Identificacao correta', type: 'textarea', placeholder: 'Pre/pos, estreita/larga, planar, AF...' },
       { key: 'heater_pre', label: 'Aquecedor pre', type: 'textarea', placeholder: 'Resistencia, alimentacao, PWM/Hz, corrente...' },
-      { key: 'heater_post', label: 'Aquecedor pos', type: 'textarea', placeholder: 'Resistencia, alimentacao, PWM/Hz, corrente...' },
-      { key: 'calibration_resistance', label: 'Resistencia de calibracao', type: 'text' },
+      { key: 'heater_post', label: 'Aquecedor pos', type: 'textarea' },
       { key: 'reference_voltage', label: 'Tensao de referencia', type: 'text' },
-      { key: 'signal_negative', label: 'Negativo do sinal / quedas', type: 'text' },
       { key: 'voltage_response', label: 'Resposta em tensao', type: 'text' },
       { key: 'current_response', label: 'Resposta em corrente', type: 'text' },
-      { key: 'stft', label: 'STFT positivo/negativo', type: 'text' },
-      { key: 'ltft', label: 'LTFT positivo/negativo', type: 'text' },
+      { key: 'stft', label: 'STFT', type: 'text' },
+      { key: 'ltft', label: 'LTFT', type: 'text' },
       { key: 'obd_processing', label: 'Processamento scanner/OBD', type: 'textarea' }
-    ]
+    ])
   },
   {
-    key: 'af_loss_causes',
-    name: 'Causas provaveis de perda de A/F',
-    shortName: 'Perda A/F',
-    category: 'Causas provaveis',
-    fields: [
-      {
-        key: 'selected_cause',
-        label: 'Causa selecionada',
-        type: 'select',
-        options: [
-          'problemas eletricos e bateria',
-          'sensor de nivel / boia',
-          'sonda lambda',
-          'combustivel de ma qualidade',
-          'entrada falsa de ar/vacuo',
-          'sensores de temperatura',
-          'injecao/bomba',
-          'carter contaminado'
-        ]
-      },
-      { key: 'evidence', label: 'Evidencia encontrada', type: 'textarea' },
+    key: 'emissions_egr_catalyst_canister',
+    name: 'Emissoes - EGR, catalisador e canister',
+    shortName: 'EGR/Cat/Canister',
+    category: 'Sistema de Emissoes',
+    system: 'Sistema de Emissoes',
+    component: 'EGR, catalisador e canister',
+    aliases: ['Causas provaveis de perda de A/F', 'Combustivel e A/F'],
+    relatedComponents: ['EGR', 'catalisador', 'canister'],
+    possibleDtcs: ['P0401'],
+    fields: withCondition([
+      { key: 'egr_condition', label: 'EGR', type: 'select', options: ['ok', 'travada aberta', 'travada fechada', 'restrita', 'nao verificada'] },
+      { key: 'catalyst_condition', label: 'Catalisador', type: 'textarea' },
+      { key: 'canister_seal', label: 'Canister vedacao', type: 'text' },
+      { key: 'canister_pwm', label: 'Canister tensao/PWM', type: 'text' },
+      { key: 'af_evidence', label: 'Evidencia de perda de A/F', type: 'textarea' },
       { key: 'recommended_action', label: 'Acao recomendada', type: 'textarea' }
+    ])
+  },
+  {
+    key: 'electrical_communication',
+    name: 'Sistema eletrico e comunicacao',
+    shortName: 'Comunicacao',
+    category: 'Sistema Eletrico e Comunicacao',
+    system: 'Sistema Eletrico e Comunicacao',
+    component: 'Rede CAN, modulos e ECU',
+    relatedComponents: ['rede CAN', 'modulos', 'ECU', 'alimentacao dos modulos'],
+    fields: [
+      ...PANEL_LIGHT_FIELDS,
+      { key: 'module_power', label: 'Alimentacao dos modulos', type: 'text' },
+      { key: 'module_ground', label: 'Aterramento dos modulos', type: 'text' },
+      { key: 'can_high', label: 'CAN High', type: 'text' },
+      { key: 'can_low', label: 'CAN Low', type: 'text' },
+      { key: 'network_resistance', label: 'Resistencia da rede', type: 'text' },
+      { key: 'scanner_communication', label: 'Comunicacao com scanner', type: 'select', options: ['normal', 'intermitente', 'sem comunicacao'] },
+      { key: 'module_notes', label: 'Modulos/ECU', type: 'textarea' }
     ]
   }
 ];
-
 const GUIDED_PREFIX = 'Diagnostico guiado:';
 const OBS_PREFIX = 'Observacoes:';
 
@@ -257,7 +389,11 @@ export const getDiagnosticTemplate = (templateKey?: string) =>
   DIAGNOSTIC_TEMPLATES.find((template) => template.key === templateKey);
 
 export const getDiagnosticTemplateByName = (name?: string) =>
-  DIAGNOSTIC_TEMPLATES.find((template) => template.name === name || template.shortName === name);
+  DIAGNOSTIC_TEMPLATES.find((template) =>
+    template.name === name ||
+    template.shortName === name ||
+    Boolean(name && template.aliases?.includes(name))
+  );
 
 export const getDiagnosticStatusLabel = (status?: string) =>
   DIAGNOSTIC_RESULT_OPTIONS.find((option) => option.value === status)?.label || status || 'Nao informado';
@@ -270,7 +406,7 @@ export const getDiagnosticStatusGroup = (status?: string) => {
 };
 
 export const getDiagnosticCategories = () =>
-  Array.from(new Set(DIAGNOSTIC_TEMPLATES.map((template) => template.category)));
+  Array.from(new Set(DIAGNOSTIC_TEMPLATES.map((template) => template.system)));
 
 export const createEmptyDiagnosticValues = (template: DiagnosticTemplate) =>
   template.fields.reduce<Record<string, string>>((acc, field) => {
@@ -353,18 +489,27 @@ export const summarizeDiagnosticTest = (test: OrderTest) => {
   if (!template) {
     return {
       title: test.component_name,
+      system: 'Teste livre',
+      component: test.component_name,
       status: getDiagnosticStatusLabel(test.result),
       lines: test.notes ? [test.notes] : []
     };
   }
 
   const parsed = parseDiagnosticNotes(template, test.notes);
-  const lines = template.fields
+  let lines = template.fields
     .map((field) => {
       const value = parsed.values[field.key];
       return value ? `${field.label}: ${value}${field.unit ? ` ${field.unit}` : ''}` : '';
     })
     .filter(Boolean);
+
+  if (lines.length === 0 && test.notes) {
+    lines = test.notes
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line && !line.startsWith(GUIDED_PREFIX));
+  }
 
   if (parsed.observations) {
     lines.push(`Observacoes: ${parsed.observations}`);
@@ -372,6 +517,8 @@ export const summarizeDiagnosticTest = (test: OrderTest) => {
 
   return {
     title: template.name,
+    system: template.system,
+    component: template.component,
     category: template.category,
     status: getDiagnosticStatusLabel(test.result),
     lines
