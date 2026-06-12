@@ -2,6 +2,9 @@
 
 ## Atual
 
+- Iniciada Fase 1 da padronizacao tecnica da Frota com catalogo local focado em diesel leve, picapes e utilitarios.
+- Frota e Atendimento rapido agora usam selects de marca, modelo, versao, ano, combustivel e motorizacao, mantendo compatibilidade com `vehicles`.
+- Placas passam a ser normalizadas no frontend para busca e salvamento, sem migration ou backend novo nesta fase.
 - Checklist de entrada passou a alimentar historico tecnico automatico derivado, sem formulario manual, migration ou backend novo.
 - O.S. agora separa queixa do cliente de sintomas tecnicos constatados, persistindo os sintomas na estrutura existente de testes.
 - Diagnosticos e testes passam a destacar falhas encontradas, itens testados e descartados, inconclusivos e nao realizados.

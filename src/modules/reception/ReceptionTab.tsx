@@ -7,6 +7,19 @@ import { clientService, orderService, staffService, vehicleService } from '../..
 import { useAuth } from '../../contexts/AuthContext';
 import { Badge, Button, Card, FormSection, Input, LoadingState, PageHeader, Select, Textarea } from '../../components/ui';
 import { createDefaultChecklist } from '../../utils/checklist';
+import {
+  CUSTOM_OPTION,
+  FUEL_OPTIONS,
+  NO_VERSION_OPTION,
+  composeModelWithVersion,
+  getEnginesForModel,
+  getMakeOptions,
+  getModelsForMake,
+  getVersionsForModel,
+  getYearOptions,
+  normalizePlate,
+  normalizeVehicleText
+} from '../../utils/vehicleCatalog';
 
 type Step = 'client' | 'vehicle' | 'complaint' | 'review';
 
@@ -45,8 +58,15 @@ export default function ReceptionTab({ onNavigate }: { onNavigate: (tab: string)
     plate: '',
     model: '',
     make: '',
+    version: NO_VERSION_OPTION,
     year: '',
-    color: ''
+    color: '',
+    fuel: 'Diesel',
+    engine: '',
+    customMake: '',
+    customModel: '',
+    customVersion: '',
+    customEngine: ''
   });
 
   const [orderForm, setOrderForm] = useState({
@@ -55,6 +75,11 @@ export default function ReceptionTab({ onNavigate }: { onNavigate: (tab: string)
     isPriority: false,
     technicianIds: [] as number[]
   });
+  const makeOptions = getMakeOptions();
+  const modelOptions = getModelsForMake(vehicleForm.make);
+  const versionOptions = getVersionsForModel(vehicleForm.make, vehicleForm.model);
+  const engineOptions = getEnginesForModel(vehicleForm.make, vehicleForm.model);
+  const yearOptions = getYearOptions();
 
   useEffect(() => {
     loadInitialData();
@@ -92,13 +117,14 @@ export default function ReceptionTab({ onNavigate }: { onNavigate: (tab: string)
 
   const filteredVehicles = useMemo(() => {
     const term = vehicleSearch.toLowerCase().trim();
+    const plateTerm = normalizePlate(vehicleSearch);
     const eligibleVehicles = selectedClient
       ? vehicles.filter((vehicle) => vehicle.client_id === selectedClient.id)
       : vehicles;
 
     if (!term) return eligibleVehicles.slice(0, 8);
     return eligibleVehicles.filter((vehicle) =>
-      vehicle.plate?.toLowerCase().includes(term) ||
+      normalizePlate(vehicle.plate || '').includes(plateTerm) ||
       vehicle.model?.toLowerCase().includes(term) ||
       vehicle.make?.toLowerCase().includes(term) ||
       vehicle.client_name?.toLowerCase().includes(term)
@@ -164,12 +190,15 @@ export default function ReceptionTab({ onNavigate }: { onNavigate: (tab: string)
 
   const createQuickVehicle = async () => {
     if (!selectedClient) return toast.error('Selecione um cliente primeiro.');
-    const plate = vehicleForm.plate.trim().toUpperCase();
-    const model = vehicleForm.model.trim();
+    const plate = normalizePlate(vehicleForm.plate);
+    const make = normalizeVehicleText(vehicleForm.make === CUSTOM_OPTION ? vehicleForm.customMake : vehicleForm.make);
+    const model = normalizeVehicleText(vehicleForm.model === CUSTOM_OPTION ? vehicleForm.customModel : vehicleForm.model);
+    const version = normalizeVehicleText(vehicleForm.version === CUSTOM_OPTION ? vehicleForm.customVersion : vehicleForm.version);
+    const engine = normalizeVehicleText(vehicleForm.engine === CUSTOM_OPTION ? vehicleForm.customEngine : vehicleForm.engine);
 
-    if (!plate || !model) return toast.error('Informe placa e modelo do veiculo.');
+    if (!plate || !make || !model) return toast.error('Informe placa, marca e modelo do veiculo.');
 
-    const duplicate = vehicles.find((vehicle) => vehicle.plate?.toUpperCase() === plate);
+    const duplicate = vehicles.find((vehicle) => normalizePlate(vehicle.plate || '') === plate);
     if (duplicate) {
       selectVehicle(duplicate);
       toast.info('Veiculo existente selecionado.');
@@ -181,10 +210,12 @@ export default function ReceptionTab({ onNavigate }: { onNavigate: (tab: string)
       const vehicle = await vehicleService.create({
         client_id: selectedClient.id,
         plate,
-        model,
-        make: vehicleForm.make.trim() || 'Nao informado',
+        model: composeModelWithVersion(model, version),
+        make,
         year: vehicleForm.year ? Number(vehicleForm.year) : null,
-        color: vehicleForm.color.trim() || null
+        color: vehicleForm.color.trim() || null,
+        fuel: vehicleForm.fuel || null,
+        engine: engine || null
       });
       const vehicleWithClient = { ...vehicle, client_name: selectedClient.name };
       setVehicles((current) => [vehicleWithClient, ...current]);
@@ -239,7 +270,7 @@ export default function ReceptionTab({ onNavigate }: { onNavigate: (tab: string)
     setClientSearch('');
     setVehicleSearch('');
     setClientForm({ name: '', phone: '', email: '', document: '' });
-    setVehicleForm({ plate: '', model: '', make: '', year: '', color: '' });
+    setVehicleForm({ plate: '', model: '', make: '', version: NO_VERSION_OPTION, year: '', color: '', fuel: 'Diesel', engine: '', customMake: '', customModel: '', customVersion: '', customEngine: '' });
     setOrderForm({ complaint: '', receptionNotes: '', isPriority: false, technicianIds: [] });
   };
 
@@ -375,13 +406,70 @@ export default function ReceptionTab({ onNavigate }: { onNavigate: (tab: string)
           </FormSection>
 
           <FormSection title="Cadastro rapido de veiculo" description="O veiculo sera vinculado ao cliente selecionado.">
-            <Input label="Placa" required value={vehicleForm.plate} onChange={(event) => setVehicleForm({ ...vehicleForm, plate: event.target.value.toUpperCase() })} />
-            <Input label="Modelo" required value={vehicleForm.model} onChange={(event) => setVehicleForm({ ...vehicleForm, model: event.target.value })} />
-            <Input label="Marca" value={vehicleForm.make} onChange={(event) => setVehicleForm({ ...vehicleForm, make: event.target.value })} />
+            <Input label="Placa" required value={vehicleForm.plate} onChange={(event) => setVehicleForm({ ...vehicleForm, plate: normalizePlate(event.target.value) })} />
+            <Select
+              label="Marca"
+              required
+              value={vehicleForm.make}
+              onChange={(event) => setVehicleForm({
+                ...vehicleForm,
+                make: event.target.value,
+                model: event.target.value === CUSTOM_OPTION ? CUSTOM_OPTION : '',
+                version: NO_VERSION_OPTION,
+                engine: '',
+                customModel: '',
+                customVersion: '',
+                customEngine: ''
+              })}
+            >
+              <option value="">Selecione</option>
+              {makeOptions.map((make) => <option key={make} value={make}>{make}</option>)}
+              <option value={CUSTOM_OPTION}>Outra marca</option>
+            </Select>
+            {vehicleForm.make === CUSTOM_OPTION && (
+              <Input label="Marca personalizada" required value={vehicleForm.customMake} onChange={(event) => setVehicleForm({ ...vehicleForm, customMake: event.target.value })} />
+            )}
+            <Select
+              label="Modelo"
+              required
+              value={vehicleForm.model}
+              onChange={(event) => setVehicleForm({ ...vehicleForm, model: event.target.value, version: NO_VERSION_OPTION, engine: '', customModel: '', customVersion: '', customEngine: '' })}
+            >
+              <option value="">Selecione</option>
+              {modelOptions.map((model) => <option key={model.name} value={model.name}>{model.name}</option>)}
+              <option value={CUSTOM_OPTION}>Outro modelo</option>
+            </Select>
+            {vehicleForm.model === CUSTOM_OPTION && (
+              <Input label="Modelo personalizado" required value={vehicleForm.customModel} onChange={(event) => setVehicleForm({ ...vehicleForm, customModel: event.target.value })} />
+            )}
+            <Select label="Versao" value={vehicleForm.version} onChange={(event) => setVehicleForm({ ...vehicleForm, version: event.target.value, customVersion: '' })}>
+              <option value={NO_VERSION_OPTION}>Nao informado</option>
+              {versionOptions.map((version) => <option key={version} value={version}>{version}</option>)}
+              <option value={CUSTOM_OPTION}>Personalizada</option>
+            </Select>
+            {vehicleForm.version === CUSTOM_OPTION && (
+              <Input label="Versao personalizada" required value={vehicleForm.customVersion} onChange={(event) => setVehicleForm({ ...vehicleForm, customVersion: event.target.value })} />
+            )}
             <div className="grid grid-cols-2 gap-3">
-              <Input label="Ano" type="number" value={vehicleForm.year} onChange={(event) => setVehicleForm({ ...vehicleForm, year: event.target.value })} />
+              <Select label="Ano" value={vehicleForm.year} onChange={(event) => setVehicleForm({ ...vehicleForm, year: event.target.value })}>
+                <option value="">Nao informado</option>
+                {yearOptions.map((year) => <option key={year} value={year}>{year}</option>)}
+              </Select>
               <Input label="Cor" value={vehicleForm.color} onChange={(event) => setVehicleForm({ ...vehicleForm, color: event.target.value })} />
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Select label="Combustivel" value={vehicleForm.fuel} onChange={(event) => setVehicleForm({ ...vehicleForm, fuel: event.target.value })}>
+                {FUEL_OPTIONS.map((fuel) => <option key={fuel} value={fuel}>{fuel}</option>)}
+              </Select>
+              <Select label="Motorizacao" value={vehicleForm.engine} onChange={(event) => setVehicleForm({ ...vehicleForm, engine: event.target.value, customEngine: '' })}>
+                <option value="">Nao informado</option>
+                {engineOptions.map((engine) => <option key={engine} value={engine}>{engine}</option>)}
+                <option value={CUSTOM_OPTION}>Personalizada</option>
+              </Select>
+            </div>
+            {vehicleForm.engine === CUSTOM_OPTION && (
+              <Input label="Motorizacao personalizada" required value={vehicleForm.customEngine} onChange={(event) => setVehicleForm({ ...vehicleForm, customEngine: event.target.value })} />
+            )}
             <div className="flex flex-wrap gap-3">
               <Button variant="secondary" onClick={() => setStep('client')}>Voltar</Button>
               <Button onClick={createQuickVehicle} disabled={saving} icon={<Car className="w-4 h-4" />}>Cadastrar e continuar</Button>

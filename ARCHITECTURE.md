@@ -40,6 +40,10 @@ Documentos de O.S. e Nota usam componentes React dedicados em `src/components/pr
 
 Atendimento/Recepcao e uma camada frontend integrada a Clientes, Veiculos e Ordens. A fase atual reutiliza `clientService`, `vehicleService` e `orderService`, salva a queixa inicial em `service_orders.description`, observacoes em `service_orders.notes` e abre O.S. com status legado `pending`. Nao ha backend, schema ou RBAC novo nesta fase.
 
+## Frota Tecnica
+
+Frota preserva o schema operacional atual de `vehicles`, mas a entrada de dados passa a usar catalogo local em `src/utils/vehicleCatalog.ts`, priorizando diesel leve, picapes e utilitarios comuns da oficina. Marca, modelo, ano, combustivel e motorizacao sao controlados no frontend; versao e motorizacao permitem personalizado controlado. O valor salvo continua compatível com os campos existentes (`make`, `model`, `year`, `fuel`, `engine`, `plate`), sem migration, backend novo ou quebra de O.S., Notas, Atendimento e impressoes.
+
 ## Decisao Arquitetural
 
 O sistema nao deve ser organizado ao redor de produtos, loja ou estoque comercial. A organizacao desejada e por operacao de oficina: atendimento, clientes, veiculos, O.S., diagnostico, agenda, financeiro operacional, equipe, relatorios e configuracoes.

@@ -8,6 +8,21 @@ import ImageUpload from './ImageUpload';
 import { useAuth } from '../contexts/AuthContext';
 import { ApiError } from '../services/api';
 import { clientService, vehicleService } from '../services';
+import {
+  CUSTOM_OPTION,
+  FUEL_OPTIONS,
+  NO_VERSION_OPTION,
+  composeModelWithVersion,
+  formatPlateForDisplay,
+  getEnginesForModel,
+  getMakeOptions,
+  getModelsForMake,
+  getVersionsForModel,
+  getYearOptions,
+  normalizePlate,
+  normalizeVehicleText,
+  parseModelWithVersion
+} from '../utils/vehicleCatalog';
 
 export default function VehiclesTab() {
   const { user } = useAuth();
@@ -20,6 +35,11 @@ export default function VehiclesTab() {
   const [yearFilter, setYearFilter] = useState('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
+  const [vehicleVersion, setVehicleVersion] = useState(NO_VERSION_OPTION);
+  const [customMake, setCustomMake] = useState('');
+  const [customModel, setCustomModel] = useState('');
+  const [customVersion, setCustomVersion] = useState('');
+  const [customEngine, setCustomEngine] = useState('');
   const [formData, setFormData] = useState({
     client_id: 0,
     make: '',
@@ -33,6 +53,12 @@ export default function VehiclesTab() {
     hp: '',
     image_url: ''
   });
+  const makeOptions = getMakeOptions();
+  const modelOptions = getModelsForMake(formData.make);
+  const versionOptions = getVersionsForModel(formData.make, formData.model);
+  const engineOptions = getEnginesForModel(formData.make, formData.model);
+  const yearOptions = getYearOptions();
+  const formFuelOptions = Array.from(new Set([...FUEL_OPTIONS, formData.fuel].filter(Boolean)));
 
   useEffect(() => {
     fetchVehicles();
@@ -84,23 +110,37 @@ export default function VehiclesTab() {
 
   const handleOpenModal = (vehicle?: Vehicle) => {
     if (vehicle) {
+      const knownMake = makeOptions.includes(vehicle.make);
+      const parsedModel = parseModelWithVersion(knownMake ? vehicle.make : '', vehicle.model);
+      const knownModel = knownMake && getModelsForMake(vehicle.make).some((model) => model.name === parsedModel.model);
+      const knownEngine = knownModel && getEnginesForModel(vehicle.make, parsedModel.model).includes(vehicle.engine || '');
       setEditingVehicle(vehicle);
+      setVehicleVersion(parsedModel.version || NO_VERSION_OPTION);
+      setCustomMake(knownMake ? '' : vehicle.make);
+      setCustomModel(knownModel ? '' : vehicle.model);
+      setCustomVersion('');
+      setCustomEngine(knownEngine ? '' : vehicle.engine || '');
       setFormData({
         client_id: vehicle.client_id,
-        make: vehicle.make,
-        model: vehicle.model,
+        make: knownMake ? vehicle.make : CUSTOM_OPTION,
+        model: knownModel ? parsedModel.model : CUSTOM_OPTION,
         year: vehicle.year || 2024,
         plate: vehicle.plate,
         color: vehicle.color || '',
         vin: vehicle.vin || '',
-        engine: vehicle.engine || '',
+        engine: knownEngine ? vehicle.engine || '' : (vehicle.engine ? CUSTOM_OPTION : ''),
         fuel: vehicle.fuel || '',
         hp: vehicle.hp || '',
         image_url: vehicle.image_url || ''
       });
     } else {
       setEditingVehicle(null);
-      setFormData({ client_id: clients[0]?.id || 0, make: '', model: '', year: 2024, plate: '', color: '', vin: '', engine: '', fuel: '', hp: '', image_url: '' });
+      setVehicleVersion(NO_VERSION_OPTION);
+      setCustomMake('');
+      setCustomModel('');
+      setCustomVersion('');
+      setCustomEngine('');
+      setFormData({ client_id: clients[0]?.id || 0, make: '', model: '', year: new Date().getFullYear(), plate: '', color: '', vin: '', engine: '', fuel: 'Diesel', hp: '', image_url: '' });
     }
     setIsModalOpen(true);
   };
@@ -109,23 +149,39 @@ export default function VehiclesTab() {
     e.preventDefault();
 
     if (user?.permissions === 'technician') {
-      toast.error('Técnicos não podem cadastrar veículos.');
+      toast.error('Tecnicos nao podem cadastrar veiculos.');
       return;
     }
 
-    const plate = formData.plate.trim().toUpperCase();
-    const oldFormat = /^[A-Z]{3}-[0-9]{4}$/;
+    const plate = normalizePlate(formData.plate);
+    const oldFormat = /^[A-Z]{3}[0-9]{4}$/;
     const mercosulFormat = /^[A-Z]{3}[0-9][A-Z][0-9]{2}$/;
+    const make = normalizeVehicleText(formData.make === CUSTOM_OPTION ? customMake : formData.make);
+    const model = normalizeVehicleText(formData.model === CUSTOM_OPTION ? customModel : formData.model);
+    const version = normalizeVehicleText(vehicleVersion === CUSTOM_OPTION ? customVersion : vehicleVersion);
+    const engine = normalizeVehicleText(formData.engine === CUSTOM_OPTION ? customEngine : formData.engine);
 
     if (!oldFormat.test(plate) && !mercosulFormat.test(plate)) {
-      toast.error('Placa inválida. Use o formato AAA-9999 ou ABC1D23 (Mercosul).');
+      toast.error('Placa invalida. Use o formato AAA-9999 ou ABC1D23 (Mercosul).');
+      return;
+    }
+
+    if (!make || !model) {
+      toast.error('Selecione marca e modelo do veiculo.');
+      return;
+    }
+
+    if (formData.engine === CUSTOM_OPTION && !engine) {
+      toast.error('Informe a motorizacao personalizada.');
       return;
     }
 
     const dataToSave = {
       ...formData,
-      make: formData.make || 'Veículo',
-      model: formData.model || 'S/M'
+      plate,
+      make,
+      model: composeModelWithVersion(model, version),
+      engine
     };
 
     try {
@@ -136,13 +192,12 @@ export default function VehiclesTab() {
       }
       fetchVehicles();
       setIsModalOpen(false);
-      toast.success(editingVehicle ? 'Veículo atualizado!' : 'Veículo cadastrado!');
-    } catch (err) { 
+      toast.success(editingVehicle ? 'Veiculo atualizado!' : 'Veiculo cadastrado!');
+    } catch (err) {
       console.error(err);
-      toast.error(err instanceof ApiError ? err.message : 'Erro de conexão ao salvar veículo');
+      toast.error(err instanceof ApiError ? err.message : 'Erro de conexao ao salvar veiculo');
     }
   };
-
   const deleteVehicle = async (id: number) => {
     if (window.confirm('Excluir veículo? Isso removerá também suas ordens.')) {
       try {
@@ -154,14 +209,17 @@ export default function VehiclesTab() {
     }
   };
 
-  const fuelOptions = Array.from(new Set(vehicles.map(v => v.fuel).filter(Boolean))).sort();
-  const yearOptions = Array.from(new Set(vehicles.map(v => v.year).filter(Boolean))).sort((a, b) => Number(b) - Number(a));
+  const fuelOptions = Array.from(new Set([...FUEL_OPTIONS, ...vehicles.map(v => v.fuel).filter(Boolean)])).sort();
+  const filterYearOptions = Array.from(new Set(vehicles.map(v => v.year).filter(Boolean))).sort((a, b) => Number(b) - Number(a));
 
   const filteredVehicles = Array.isArray(vehicles) ? vehicles.filter(v => {
+    const normalizedSearch = searchTerm.toLowerCase().trim();
+    const normalizedPlateSearch = normalizePlate(searchTerm);
     const matchesSearch =
-      v.plate.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      v.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      v.client_name?.toLowerCase().includes(searchTerm.toLowerCase());
+      normalizePlate(v.plate || '').includes(normalizedPlateSearch) ||
+      v.model.toLowerCase().includes(normalizedSearch) ||
+      v.make.toLowerCase().includes(normalizedSearch) ||
+      v.client_name?.toLowerCase().includes(normalizedSearch);
     const matchesFuel = fuelFilter === 'all' || v.fuel === fuelFilter;
     const matchesYear = yearFilter === 'all' || String(v.year) === yearFilter;
 
@@ -220,7 +278,7 @@ export default function VehiclesTab() {
             className="px-4 py-3 bg-surface-50 border border-surface-200 rounded-xl outline-none font-medium text-sm"
           >
             <option value="all">Todos os anos</option>
-            {yearOptions.map(year => (
+            {filterYearOptions.map(year => (
               <option key={year} value={year}>{year}</option>
             ))}
           </select>
@@ -260,7 +318,7 @@ export default function VehiclesTab() {
                   <div className="flex items-center gap-3">
                     <h3 className="font-display font-bold text-2xl text-surface-950 group-hover:text-brand-primary transition-colors">{vehicle.make} {vehicle.model}</h3>
                     <span className="px-3 py-1 bg-surface-950 text-white text-[10px] font-mono font-bold rounded-lg tracking-wider uppercase border border-surface-800 shadow-sm data-value">
-                      {vehicle.plate}
+                      {formatPlateForDisplay(vehicle.plate)}
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-surface-500 mt-3 font-medium items-center">
@@ -357,38 +415,107 @@ export default function VehiclesTab() {
                   </div>
                 )}
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label className="micro-label ml-1">Marca</label>
-                      <input 
-                        placeholder="Ex: Toyota"
-                        className="w-full px-6 py-4 bg-surface-50 border border-surface-200 rounded-2xl outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary focus:bg-white transition-all font-bold" 
-                        value={formData.make} 
-                        onChange={e => setFormData({...formData, make: e.target.value})} 
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="micro-label ml-1">Marca</label>
+                    <select
+                      required
+                      className="w-full px-6 py-4 bg-surface-50 border border-surface-200 rounded-2xl outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary focus:bg-white transition-all font-bold appearance-none"
+                      value={formData.make}
+                      onChange={(e) => {
+                        const make = e.target.value;
+                        setFormData({ ...formData, make, model: make === CUSTOM_OPTION ? CUSTOM_OPTION : '', engine: '', fuel: formData.fuel || 'Diesel' });
+                        setVehicleVersion(NO_VERSION_OPTION);
+                        setCustomModel('');
+                        setCustomVersion('');
+                        setCustomEngine('');
+                      }}
+                    >
+                      <option value="">Selecione</option>
+                      {makeOptions.map((make) => <option key={make} value={make}>{make}</option>)}
+                      <option value={CUSTOM_OPTION}>Outra marca</option>
+                    </select>
+                    {formData.make === CUSTOM_OPTION && (
+                      <input
+                        required
+                        placeholder="Marca personalizada"
+                        className="w-full px-6 py-4 bg-white border border-surface-200 rounded-2xl outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary font-bold"
+                        value={customMake}
+                        onChange={(e) => setCustomMake(e.target.value)}
                       />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="micro-label ml-1">Modelo</label>
-                      <input 
-                        placeholder="Ex: Corolla"
-                        className="w-full px-6 py-4 bg-surface-50 border border-surface-200 rounded-2xl outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary focus:bg-white transition-all font-bold" 
-                        value={formData.model} 
-                        onChange={e => setFormData({...formData, model: e.target.value})} 
-                      />
-                    </div>
+                    )}
                   </div>
+                  <div className="space-y-2">
+                    <label className="micro-label ml-1">Modelo</label>
+                    <select
+                      required
+                      disabled={!formData.make}
+                      className="w-full px-6 py-4 bg-surface-50 border border-surface-200 rounded-2xl outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary focus:bg-white transition-all font-bold appearance-none disabled:opacity-60"
+                      value={formData.model}
+                      onChange={(e) => {
+                        const model = e.target.value;
+                        setFormData({ ...formData, model, engine: '' });
+                        setVehicleVersion(NO_VERSION_OPTION);
+                        setCustomModel('');
+                        setCustomVersion('');
+                        setCustomEngine('');
+                      }}
+                    >
+                      <option value="">Selecione</option>
+                      {modelOptions.map((model) => <option key={model.name} value={model.name}>{model.name}</option>)}
+                      <option value={CUSTOM_OPTION}>Outro modelo</option>
+                    </select>
+                    {formData.model === CUSTOM_OPTION && (
+                      <input
+                        required
+                        placeholder="Modelo personalizado"
+                        className="w-full px-6 py-4 bg-white border border-surface-200 rounded-2xl outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary font-bold"
+                        value={customModel}
+                        onChange={(e) => setCustomModel(e.target.value)}
+                      />
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="micro-label ml-1">Versao</label>
+                    <select
+                      className="w-full px-6 py-4 bg-surface-50 border border-surface-200 rounded-2xl outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary focus:bg-white transition-all font-bold appearance-none"
+                      value={vehicleVersion}
+                      onChange={(e) => {
+                        setVehicleVersion(e.target.value);
+                        setCustomVersion('');
+                      }}
+                    >
+                      <option value={NO_VERSION_OPTION}>Nao informado</option>
+                      {versionOptions.map((version) => <option key={version} value={version}>{version}</option>)}
+                      <option value={CUSTOM_OPTION}>Personalizada</option>
+                    </select>
+                    {vehicleVersion === CUSTOM_OPTION && (
+                      <input
+                        required
+                        placeholder="Versao personalizada"
+                        className="w-full px-6 py-4 bg-white border border-surface-200 rounded-2xl outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary font-bold"
+                        value={customVersion}
+                        onChange={(e) => setCustomVersion(e.target.value)}
+                      />
+                    )}
+                  </div>
+                </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <label className="micro-label ml-1">Ano</label>
                     <div className="relative group">
                       <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-300 group-focus-within:text-brand-primary transition-colors" />
-                      <input 
-                        type="number" 
+                      <select
                         className="w-full pl-12 pr-4 py-4 bg-surface-50 border border-surface-200 rounded-2xl outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary focus:bg-white transition-all font-bold data-value" 
                         value={formData.year} 
-                        onChange={e => setFormData({...formData, year: parseInt(e.target.value)})} 
-                      />
+                        onChange={e => setFormData({...formData, year: parseInt(e.target.value)})}
+                      >
+                        {yearOptions.map((year) => <option key={year} value={year}>{year}</option>)}
+                      </select>
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -404,8 +531,8 @@ export default function VehiclesTab() {
                         required 
                         placeholder="ABC-1234"
                         className="w-full pl-12 pr-4 py-4 bg-surface-50 border border-surface-200 rounded-2xl outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary focus:bg-white transition-all font-bold font-mono uppercase tracking-widest" 
-                        value={formData.plate} 
-                        onAccept={(value) => setFormData({...formData, plate: value})}
+                        value={formatPlateForDisplay(formData.plate)}
+                        onAccept={(value) => setFormData({...formData, plate: normalizePlate(String(value))})}
                       />
                     </div>
                   </div>
@@ -416,64 +543,72 @@ export default function VehiclesTab() {
                     <label className="micro-label ml-1">Cor</label>
                     <div className="relative group">
                       <Palette className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-300 group-focus-within:text-brand-primary transition-colors" />
-                      <input 
-                        className="w-full pl-12 pr-4 py-4 bg-surface-50 border border-surface-200 rounded-2xl outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary focus:bg-white transition-all font-bold" 
-                        value={formData.color} 
-                        onChange={e => setFormData({...formData, color: e.target.value})} 
-                        placeholder="Ex: Prata" 
+                      <input
+                        className="w-full pl-12 pr-4 py-4 bg-surface-50 border border-surface-200 rounded-2xl outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary focus:bg-white transition-all font-bold"
+                        value={formData.color}
+                        onChange={e => setFormData({...formData, color: e.target.value})}
+                        placeholder="Ex: Prata"
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label className="micro-label ml-1">Motorização</label>
-                      <div className="relative group">
-                        <Gauge className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-300 group-focus-within:text-brand-primary transition-colors" />
-                        <input 
-                          className="w-full pl-12 pr-4 py-4 bg-surface-50 border border-surface-200 rounded-2xl outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary focus:bg-white transition-all font-bold data-value" 
-                          value={formData.engine} 
-                          onChange={e => setFormData({...formData, engine: e.target.value})} 
-                          placeholder="Ex: 1.6" 
-                        />
-                      </div>
+                  <div className="space-y-2">
+                    <label className="micro-label ml-1">Combustivel</label>
+                    <div className="relative group">
+                      <Fuel className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-300 group-focus-within:text-brand-primary transition-colors" />
+                      <select
+                        required
+                        className="w-full pl-12 pr-4 py-4 bg-surface-50 border border-surface-200 rounded-2xl outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary focus:bg-white transition-all font-bold appearance-none"
+                        value={formData.fuel}
+                        onChange={e => setFormData({...formData, fuel: e.target.value})}
+                      >
+                        <option value="">Selecione</option>
+                        {formFuelOptions.map((fuel) => <option key={fuel} value={fuel}>{fuel}</option>)}
+                      </select>
                     </div>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="micro-label ml-1">Combustível</label>
+                    <label className="micro-label ml-1">Motorizacao</label>
                     <div className="relative group">
-                      <Fuel className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-300 group-focus-within:text-brand-primary transition-colors" />
-                      <select 
-                        className="w-full pl-12 pr-4 py-4 bg-surface-50 border border-surface-200 rounded-2xl outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary focus:bg-white transition-all font-bold appearance-none" 
-                        value={formData.fuel} 
-                        onChange={e => setFormData({...formData, fuel: e.target.value})}
+                      <Gauge className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-300 group-focus-within:text-brand-primary transition-colors" />
+                      <select
+                        className="w-full pl-12 pr-4 py-4 bg-surface-50 border border-surface-200 rounded-2xl outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary focus:bg-white transition-all font-bold appearance-none data-value"
+                        value={formData.engine}
+                        onChange={(e) => {
+                          setFormData({ ...formData, engine: e.target.value });
+                          setCustomEngine('');
+                        }}
                       >
                         <option value="">Selecione</option>
-                        <option value="Flex">Flex</option>
-                        <option value="Gasolina">Gasolina</option>
-                        <option value="Álcool">Álcool</option>
-                        <option value="Diesel">Diesel</option>
-                        <option value="Elétrico">Elétrico</option>
-                        <option value="Híbrido">Híbrido</option>
+                        {engineOptions.map((engine) => <option key={engine} value={engine}>{engine}</option>)}
+                        <option value={CUSTOM_OPTION}>Personalizada</option>
                       </select>
                     </div>
+                    {formData.engine === CUSTOM_OPTION && (
+                      <input
+                        required
+                        placeholder="Motorizacao personalizada"
+                        className="w-full px-6 py-4 bg-white border border-surface-200 rounded-2xl outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary font-bold"
+                        value={customEngine}
+                        onChange={(e) => setCustomEngine(e.target.value)}
+                      />
+                    )}
                   </div>
                   <div className="space-y-2">
-                    <label className="micro-label ml-1">Potência (Cv)</label>
+                    <label className="micro-label ml-1">Potencia (Cv)</label>
                     <div className="relative group">
                       <Wand2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-300 group-focus-within:text-brand-primary transition-colors" />
-                      <input 
-                        className="w-full pl-12 pr-4 py-4 bg-surface-50 border border-surface-200 rounded-2xl outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary focus:bg-white transition-all font-bold data-value" 
-                        value={formData.hp} 
-                        onChange={e => setFormData({...formData, hp: e.target.value})} 
-                        placeholder="Ex: 150" 
+                      <input
+                        className="w-full pl-12 pr-4 py-4 bg-surface-50 border border-surface-200 rounded-2xl outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary focus:bg-white transition-all font-bold data-value"
+                        value={formData.hp}
+                        onChange={e => setFormData({...formData, hp: e.target.value})}
+                        placeholder="Ex: 150"
                       />
                     </div>
                   </div>
                 </div>
-
                 <div className="pt-6 flex gap-4">
                   <button 
                     type="button"
