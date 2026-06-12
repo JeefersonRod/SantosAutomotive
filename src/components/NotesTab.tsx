@@ -189,7 +189,7 @@ export default function NotesTab() {
   const deleteNote = async (note: Note) => {
     const confirmation = window.prompt('Para excluir esta nota, digite exatamente: EU QUERO EXCLUIR');
     if (confirmation !== 'EU QUERO EXCLUIR') {
-      toast.error('Exclusao cancelada. O texto de confirmacao nao confere.');
+      toast.error('Exclusão cancelada. O texto de confirmação não confere.');
       return;
     }
 
@@ -882,7 +882,7 @@ export default function NotesTab() {
                     <tbody>
                       {viewingServices.length > 0 && (
                         <tr className="border-b border-black h-5 bg-surface-100">
-                          <td colSpan={4} className="px-1 text-[9px] font-bold uppercase italic">Servicos / Mao de obra</td>
+                          <td colSpan={4} className="px-1 text-[9px] font-bold uppercase italic">Serviços / Mão de obra</td>
                         </tr>
                       )}
                       {viewingServices.map((item, idx) => (
@@ -902,7 +902,7 @@ export default function NotesTab() {
                       ))}
                       {viewingParts.length > 0 && (
                         <tr className="border-b border-black h-5 bg-surface-100">
-                          <td colSpan={4} className="px-1 text-[9px] font-bold uppercase italic">Pecas / Itens aplicados</td>
+                          <td colSpan={4} className="px-1 text-[9px] font-bold uppercase italic">Peças / Itens aplicados</td>
                         </tr>
                       )}
                       {viewingParts.map((item, idx) => (

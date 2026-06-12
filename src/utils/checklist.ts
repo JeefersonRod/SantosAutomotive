@@ -2,15 +2,18 @@ export type ChecklistStatus = 'present' | 'absent' | 'not_checked';
 
 export const CHECKLIST_ITEMS = [
   { key: 'scratches', label: 'Avarias/Riscos' },
-  { key: 'check_engine_light', label: 'Luz injecao acesa' },
+  { key: 'check_engine_light', label: 'Luz injeção acesa' },
   { key: 'abs_light', label: 'Luz ABS acesa' },
   { key: 'airbag_light', label: 'Luz Airbag acesa' },
   { key: 'eps_light', label: 'Luz EPS acesa' },
-  { key: 'visible_leak', label: 'Vazamento visivel' },
+  { key: 'battery_light', label: 'Luz bateria acesa' },
+  { key: 'temperature_light', label: 'Luz temperatura acesa' },
+  { key: 'other_panel_lights', label: 'Outras luzes acesas' },
+  { key: 'visible_leak', label: 'Vazamento visível' },
   { key: 'worn_tires', label: 'Pneu gasto' },
   { key: 'coolant_irregular', label: 'Arrefecimento irregular' },
   { key: 'spare_tire', label: 'Estepe' },
-  { key: 'triangle', label: 'Triangulo' },
+  { key: 'triangle', label: 'Triângulo' },
   { key: 'jack', label: 'Macaco' },
   { key: 'documents', label: 'Documentos' },
   { key: 'personal_items', label: 'Itens pessoais' }
@@ -32,17 +35,17 @@ export const CHECKLIST_STATUS_OPTIONS: Array<{
   },
   {
     value: 'absent',
-    label: 'Ausente / Nao',
+    label: 'Ausente / Não',
     shortLabel: 'Ausente',
     className: 'bg-red-50 border-red-200 text-red-700',
     printMark: 'Ausente'
   },
   {
     value: 'not_checked',
-    label: 'Nao verificado',
-    shortLabel: 'Nao verificado',
+    label: 'Não verificado',
+    shortLabel: 'Não verificado',
     className: 'bg-surface-50 border-surface-200 text-surface-500',
-    printMark: 'Nao verificado'
+    printMark: 'Não verificado'
   }
 ];
 
@@ -62,6 +65,9 @@ export const createDefaultChecklist = () => ({
   abs_light: 'not_checked' as ChecklistStatus,
   airbag_light: 'not_checked' as ChecklistStatus,
   eps_light: 'not_checked' as ChecklistStatus,
+  battery_light: 'not_checked' as ChecklistStatus,
+  temperature_light: 'not_checked' as ChecklistStatus,
+  other_panel_lights: 'not_checked' as ChecklistStatus,
   visible_leak: 'not_checked' as ChecklistStatus,
   worn_tires: 'not_checked' as ChecklistStatus,
   coolant_irregular: 'not_checked' as ChecklistStatus,
@@ -85,6 +91,9 @@ export const normalizeChecklist = (checklist?: Record<string, any> | null) => {
     abs_light: normalizeChecklistStatus(checklist.abs_light),
     airbag_light: normalizeChecklistStatus(checklist.airbag_light),
     eps_light: normalizeChecklistStatus(checklist.eps_light),
+    battery_light: normalizeChecklistStatus(checklist.battery_light),
+    temperature_light: normalizeChecklistStatus(checklist.temperature_light),
+    other_panel_lights: normalizeChecklistStatus(checklist.other_panel_lights),
     visible_leak: normalizeChecklistStatus(checklist.visible_leak),
     worn_tires: normalizeChecklistStatus(checklist.worn_tires),
     coolant_irregular: normalizeChecklistStatus(checklist.coolant_irregular),

@@ -43,17 +43,17 @@ const ORDER_STATUS_OPTIONS: Array<{
 }> = [
   {
     value: 'pending',
-    label: 'Recepcao / aguardando diagnostico',
-    shortLabel: 'Recepcao',
-    helper: 'O.S. aberta e aguardando triagem tecnica.',
+    label: 'Recepção / aguardando diagnóstico',
+    shortLabel: 'Recepção',
+    helper: 'O.S. aberta e aguardando triagem técnica.',
     selectClass: 'bg-amber-50 text-amber-700 border-amber-100',
     badgeClass: 'bg-amber-50 text-amber-700 border-amber-100'
   },
   {
     value: 'in_progress',
-    label: 'Em diagnostico / execucao',
+    label: 'Em diagnóstico / execução',
     shortLabel: 'Em trabalho',
-    helper: 'Servico em diagnostico, reparo ou testes.',
+    helper: 'Serviço em diagnóstico, reparo ou testes.',
     selectClass: 'bg-brand-primary/5 text-brand-primary border-brand-primary/10',
     badgeClass: 'bg-brand-primary/10 text-brand-primary border-brand-primary/20'
   },
@@ -61,7 +61,7 @@ const ORDER_STATUS_OPTIONS: Array<{
     value: 'completed',
     label: 'Finalizada',
     shortLabel: 'Finalizada',
-    helper: 'Servico finalizado, pronto para nota/pagamento.',
+    helper: 'Serviço finalizado, pronto para nota/pagamento.',
     selectClass: 'bg-emerald-50 text-emerald-700 border-emerald-100',
     badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-100'
   }
@@ -69,6 +69,30 @@ const ORDER_STATUS_OPTIONS: Array<{
 
 const getOrderStatusMeta = (status: ServiceOrder['status']) =>
   ORDER_STATUS_OPTIONS.find((option) => option.value === status) || ORDER_STATUS_OPTIONS[0];
+
+const COMPLAINT_SUGGESTIONS = [
+  'Não liga',
+  'Liga e morre',
+  'Demora para pegar',
+  'Perde força',
+  'Consumo alto',
+  'Luz de injeção acesa',
+  'Superaquecimento',
+  'Barulho',
+  'Vibração',
+  'Vazamento',
+  'Outro'
+];
+
+const INITIAL_EVIDENCE_KEYS = [
+  'check_engine_light',
+  'abs_light',
+  'airbag_light',
+  'eps_light',
+  'battery_light',
+  'temperature_light',
+  'other_panel_lights'
+];
 
 export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, options?: { search?: string }) => void }) {
   const { user } = useAuth();
@@ -218,7 +242,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
   const resetDiagnosticForm = (templateKey = selectedDiagnosticTemplateKey) => {
     const template = getDiagnosticTemplate(templateKey) || DIAGNOSTIC_TEMPLATES[0];
     setSelectedDiagnosticTemplateKey(template.key);
-    setSelectedDiagnosticCategory(template.category);
+    setSelectedDiagnosticCategory(template.system);
     setDiagnosticValues(createEmptyDiagnosticValues(template));
     setDiagnosticResult('inconclusivo');
     setDiagnosticObservations('');
@@ -229,7 +253,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
     if (!template) return;
 
     setSelectedDiagnosticTemplateKey(template.key);
-    setSelectedDiagnosticCategory(template.category);
+    setSelectedDiagnosticCategory(template.system);
 
     if (existingTest) {
       const parsed = parseDiagnosticNotes(template, existingTest.notes);
@@ -295,7 +319,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
 
   const saveGuidedDiagnosticToForm = () => {
     if (!canEditDiagnostics) {
-      toast.error('Seu perfil pode visualizar diagnosticos, mas nao alterar testes tecnicos.');
+      toast.error('Seu perfil pode visualizar diagnósticos, mas não alterar testes técnicos.');
       return;
     }
 
@@ -316,7 +340,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
     }
 
     setFormData({ ...formData, tests: nextTests });
-    toast.success('Diagnostico guiado adicionado ao resumo. Clique em Salvar para gravar na O.S.');
+    toast.success('Diagnóstico guiado adicionado ao resumo. Clique em Salvar para gravar na O.S.');
   };
 
   const addManualDiagnosticTest = () => {
@@ -327,7 +351,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
     }
 
     if (formData.tests.some((test) => test.component_name.toLowerCase() === name.toLowerCase())) {
-      toast.error('Esse teste ja foi adicionado.');
+      toast.error('Esse teste já foi adicionado.');
       return;
     }
 
@@ -347,7 +371,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
   const saveTestsOnly = async () => {
     if (!editingOrder) return;
     if (!canEditDiagnostics) {
-      toast.error('Seu perfil pode visualizar diagnosticos, mas nao alterar testes tecnicos.');
+      toast.error('Seu perfil pode visualizar diagnósticos, mas não alterar testes técnicos.');
       return;
     }
 
@@ -368,10 +392,10 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
       setLoadedTests(updatedTests);
       await fetchOrders();
       setIsModalOpen(false);
-      toast.success('Diagnosticos salvos na O.S.');
+      toast.success('Diagnósticos salvos na O.S.');
     } catch (err) {
       console.error(err);
-      toast.error(err instanceof ApiError ? err.message : 'Erro ao salvar diagnosticos');
+      toast.error(err instanceof ApiError ? err.message : 'Erro ao salvar diagnósticos');
     }
   };
 
@@ -476,19 +500,19 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
     }
 
     if (!formData.vehicle_id) {
-      toast.error('Selecione o veiculo da O.S.');
+      toast.error('Selecione o veículo da O.S.');
       return;
     }
 
     const description = formData.description.trim();
     if (!description) {
-      toast.error('Informe a queixa inicial ou o servico solicitado.');
+      toast.error('Informe a queixa inicial ou o serviço solicitado.');
       return;
     }
 
     const invalidItem = formData.items.find((item) => !item.description?.trim() || Number(item.price) < 0 || Number(item.quantity || 1) <= 0);
     if (invalidItem) {
-      toast.error('Revise os itens da O.S.: descricao, quantidade e valor precisam estar validos.');
+      toast.error('Revise os itens da O.S.: descrição, quantidade e valor precisam estar validos.');
       return;
     }
     
@@ -528,7 +552,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
   const deleteOrder = async (id: number) => {
     const confirmation = window.prompt('Para excluir esta O.S., digite exatamente: EU QUERO EXCLUIR');
     if (confirmation !== 'EU QUERO EXCLUIR') {
-      toast.error('Exclusao cancelada. O texto de confirmacao nao confere.');
+      toast.error('Exclusão cancelada. O texto de confirmação não confere.');
       return;
     }
 
@@ -547,12 +571,12 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
       return;
     }
 
-    if (!window.confirm(`Gerar Nota de Servico da OS #${order.id}?`)) return;
+    if (!window.confirm(`Gerar Nota de Serviço da OS #${order.id}?`)) return;
 
     try {
       await orderService.generateNote(order.id);
       await fetchOrders();
-      toast.success('Nota de servico gerada a partir da O.S.');
+      toast.success('Nota de serviço gerada a partir da O.S.');
       onNavigate('notes');
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Erro ao gerar nota da O.S.');
@@ -612,7 +636,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
     const quantity = Number(newItem.quantity) || 1;
 
     if (!description) {
-      toast.error('Informe a descricao do item ou servico.');
+      toast.error('Informe a descrição do item ou serviço.');
       return;
     }
 
@@ -658,14 +682,14 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
     modalMode === 'checklist'
       ? 'Checklist da O.S.'
       : modalMode === 'tests'
-        ? 'Diagnostico e testes da O.S.'
-        : `${editingOrder ? 'Editar' : 'Nova'} Ordem de Servico`;
+        ? 'Diagnóstico e testes da O.S.'
+        : `${editingOrder ? 'Editar' : 'Nova'} Ordem de Serviço`;
   const modalDescription =
     modalMode === 'checklist'
-      ? 'Atualize a vistoria de entrada sem abrir a edicao completa.'
+      ? 'Atualize a vistoria de entrada sem abrir a edição completa.'
       : modalMode === 'tests'
-        ? 'Atualize diagnosticos e testes sem abrir a edicao completa.'
-        : 'Preencha os dados tecnicos do servico.';
+        ? 'Atualize diagnósticos e testes sem abrir a edição completa.'
+        : 'Preencha os dados técnicos do serviço.';
 
   return (
     <>
@@ -681,7 +705,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-400 group-focus-within:text-brand-primary transition-colors" />
           <input 
             type="text" 
-            placeholder="Buscar por OS, cliente, placa, modelo ou tecnico..."
+            placeholder="Buscar por OS, cliente, placa, modelo ou técnico..."
             className="w-full pl-12 pr-4 py-3.5 bg-white border border-surface-200 rounded-2xl outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition-all shadow-sm font-medium"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -800,7 +824,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
                     className="px-3 py-2 bg-white border border-surface-200 text-surface-700 rounded-xl hover:border-brand-primary hover:text-brand-primary transition-all flex items-center gap-2 text-xs font-bold shadow-sm"
                   >
                     <CheckCircle2 className="w-4 h-4" />
-                    Diagnostico/Testes
+                    Diagnóstico/Testes
                   </button>
                 </div>
               </div>
@@ -891,7 +915,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
 
               <form onSubmit={handleSubmit} className="space-y-6">
                 {isFullModal && (
-                <FormSection title="Cliente, veiculo, responsaveis e status" description="Vincule a O.S. ao veiculo atendido, tecnicos e etapa operacional.">
+                <FormSection title="Cliente, veículo, responsáveis e status" description="Vincule a O.S. ao veículo atendido, técnicos e etapa operacional.">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {!editingOrder && (
                     <div className="space-y-2">
@@ -970,7 +994,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
                 )}
 
                 {isFullModal && (
-                <FormSection title="Prazos da O.S." description="Controle datas de entrada e previsao ou saida sem alterar o schema atual.">
+                <FormSection title="Prazos da O.S." description="Controle datas de entrada e previsão ou saída sem alterar o schema atual.">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <label className="micro-label ml-1">Data de Entrada</label>
@@ -995,35 +1019,81 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
                 )}
 
                 {isFullModal && (
-                <FormSection title="Queixa do cliente" description="Registre o relato inicial sem misturar com a constatacao tecnica.">
+                <FormSection title="Recepção" description="Registre apenas o relato do cliente e as evidências iniciais observadas na chegada.">
                 <div className="space-y-2">
-                  <label className="micro-label ml-1">Queixa / Servico solicitado</label>
+                  <label className="micro-label ml-1">Queixa do cliente</label>
                   <input 
                     disabled={user?.permissions === 'technician'}
                     required
-                    placeholder="Ex: Revisão de 40.000km, Troca de Embreagem..."
+                    placeholder="Ex: não liga, perde força, luz de injeção acesa..."
                     className="w-full p-4 bg-surface-50 border border-surface-200 rounded-2xl outline-none focus:ring-2 focus:ring-brand-primary font-bold transition-all disabled:opacity-60" 
                     value={formData.description} 
                     onChange={e => setFormData({...formData, description: e.target.value})} 
                   />
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {COMPLAINT_SUGGESTIONS.map((suggestion) => (
+                      <button
+                        key={suggestion}
+                        type="button"
+                        disabled={user?.permissions === 'technician'}
+                        onClick={() => setFormData({ ...formData, description: suggestion })}
+                        className="px-3 py-2 rounded-xl border border-surface-200 bg-white text-[11px] font-bold text-surface-600 transition-colors hover:border-brand-primary hover:text-brand-primary disabled:opacity-60"
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="micro-label ml-1">Relato do Cliente / Observações</label>
+                  <label className="micro-label ml-1">Relato do cliente / observações da recepção</label>
                   <textarea 
                     rows={3}
-                    placeholder="Descreva os sintomas ou observações adicionais..."
+                    placeholder="Descreva com as palavras do cliente e registre observações iniciais da recepção..."
                     className="w-full p-4 bg-surface-50 border border-surface-200 rounded-2xl outline-none focus:ring-2 focus:ring-brand-primary font-medium transition-all" 
                     value={formData.notes} 
                     onChange={e => setFormData({...formData, notes: e.target.value})} 
                   />
                 </div>
 
+                <div className="space-y-3 bg-surface-50 p-4 rounded-3xl border border-surface-200">
+                  <div>
+                    <h4 className="micro-label">Evidências iniciais</h4>
+                    <p className="mt-1 text-xs font-medium text-surface-500">
+                      Luzes e alertas observados na entrada. Isso é recepção, não diagnóstico técnico.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {CHECKLIST_ITEMS.filter((item) => INITIAL_EVIDENCE_KEYS.includes(item.key)).map((item) => {
+                      const isPresent = formData.checklist[item.key] === 'present';
+                      return (
+                        <button
+                          key={item.key}
+                          type="button"
+                          onClick={() => setFormData({
+                            ...formData,
+                            checklist: {
+                              ...formData.checklist,
+                              [item.key]: isPresent ? 'not_checked' : 'present'
+                            }
+                          })}
+                          className={`px-3 py-2 rounded-xl text-left text-[11px] font-bold border transition-all ${
+                            isPresent
+                              ? 'bg-amber-50 border-amber-200 text-amber-700'
+                              : 'bg-white border-surface-200 text-surface-500 hover:border-brand-primary hover:text-brand-primary'
+                          }`}
+                        >
+                          {item.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 </FormSection>
                 )}
-
                 {showChecklistModalSection && (
-                <FormSection title="Vistoria de entrada" description="Registre fotos e checklist do estado do veiculo na chegada.">
+                <FormSection title="Recepção - checklist de entrada" description="Registre fotos e checklist do estado do veículo na chegada.">
                 <MultiImageUpload 
                   label="Vistoria de Entrada (Fotos do Veículo)"
                   values={formData.checkin_images}
@@ -1034,7 +1104,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
                 <div className="space-y-4 bg-surface-50 p-6 rounded-3xl border border-surface-200">
                   <h4 className="micro-label flex items-center gap-2">
                     <CheckSquare className="w-4 h-4" />
-                    Checklist de Vistoria
+                    Checklist de entrada
                   </h4>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                     <div className="space-y-1">
@@ -1044,7 +1114,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
                         value={formData.checklist.fuel_level}
                         onChange={e => setFormData({...formData, checklist: {...formData.checklist, fuel_level: e.target.value}})}
                       >
-                        <option value="not_checked">Nao verificado</option>
+                        <option value="not_checked">Não verificado</option>
                         <option value="Reserva">Reserva</option>
                         <option value="1/4">1/4</option>
                         <option value="1/2">1/2</option>
@@ -1079,13 +1149,27 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
                 )}
 
                 {showTestsModalSection && (
-                <FormSection title="Diagnostico guiado" description="Selecione um modelo tecnico, preencha apenas o que foi medido e salve no resumo da O.S.">
+                <FormSection title="Diagnóstico Técnico" description="Área do técnico: sistemas, componentes, sintomas técnicos, testes e resultados.">
                 <div className="space-y-5 bg-surface-50 p-4 sm:p-6 rounded-3xl border border-surface-200">
+                  <div className="bg-white p-4 rounded-3xl border border-brand-primary/15 space-y-3">
+                    <h3 className="micro-label">Fluxo do diagnóstico</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
+                      {['1. Escolha o sistema', '2. Escolha o componente', '3. Execute o teste', '4. Informe o resultado', '5. Salve no resumo da O.S.'].map((stepLabel) => (
+                        <div key={stepLabel} className="rounded-2xl border border-surface-200 bg-surface-50 p-3 text-[11px] font-bold text-surface-600">
+                          {stepLabel}
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs font-medium text-surface-500">
+                      Preencha apenas os testes executados. Evidências de recepção e checklist ficam na seção Recepção.
+                    </p>
+                  </div>
+
                   <div className="bg-white p-4 rounded-3xl border border-surface-200 space-y-3">
                     <div>
-                      <h3 className="micro-label">Sintomas tecnicos constatados</h3>
+                      <h3 className="micro-label">Sintomas técnicos constatados</h3>
                       <p className="text-xs font-medium text-surface-500 mt-1">
-                        Diferente da queixa do cliente: marque apenas o que a oficina constatou tecnicamente.
+                        Diferente da queixa do cliente: marque apenas o que a oficina constatou técnicamente.
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -1111,7 +1195,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
                   </div>
 
                   <div className="space-y-3">
-                    <h3 className="micro-label">Sistemas do diagnostico guiado</h3>
+                    <h3 className="micro-label">1. Escolha o sistema</h3>
                     <div className="flex gap-2 overflow-x-auto pb-1">
                       {diagnosticCategories.map((category) => (
                         <button
@@ -1132,6 +1216,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
                         </button>
                       ))}
                     </div>
+                    <h3 className="micro-label">2. Escolha o componente</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {DIAGNOSTIC_TEMPLATES.filter((template) => template.system === selectedDiagnosticCategory).map((template) => (
                         <button
@@ -1154,9 +1239,11 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
                   <div className={`${canEditDiagnostics ? 'bg-white' : 'bg-surface-100'} p-4 rounded-3xl border border-surface-200 space-y-4`}>
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                       <div>
-                        <h3 className="text-base font-display font-bold text-surface-900">{selectedDiagnosticTemplate.name}</h3>
+                        <h3 className="text-base font-display font-bold text-surface-900">3. Execute o teste: {selectedDiagnosticTemplate.name}</h3>
                         <p className="text-xs font-medium text-surface-500">{selectedDiagnosticTemplate.system} / {selectedDiagnosticTemplate.component}</p>
                       </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-surface-500 uppercase ml-1">4. Resultado</label>
                       <select
                         disabled={!canEditDiagnostics}
                         className="px-3 py-2 bg-surface-50 border border-surface-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-brand-primary/20 disabled:opacity-60"
@@ -1167,23 +1254,24 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
                           <option key={option.value} value={option.value}>{option.label}</option>
                         ))}
                       </select>
+                      </div>
                     </div>
 
                     {!canEditDiagnostics && (
                       <p className="text-xs font-semibold text-surface-500 bg-white border border-surface-200 rounded-2xl p-3">
-                        Seu perfil visualiza diagnosticos tecnicos, mas nao altera testes nesta etapa.
+                        Seu perfil visualiza diagnósticos técnicos, mas não altera testes nesta etapa.
                       </p>
                     )}
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[46vh] overflow-y-auto pr-1">
                       {selectedDiagnosticTemplate.fields.map(renderDiagnosticField)}
                       <div className="space-y-1 sm:col-span-2">
-                        <label className="text-[10px] font-bold text-surface-500 uppercase ml-1">Observacoes finais</label>
+                        <label className="text-[10px] font-bold text-surface-500 uppercase ml-1">Observações finais</label>
                         <textarea
                           disabled={!canEditDiagnostics}
                           rows={3}
                           className="w-full px-3 py-2 bg-white border border-surface-200 rounded-xl outline-none focus:ring-2 focus:ring-brand-primary/20 text-sm font-medium disabled:opacity-60"
-                          placeholder="Conclusao, evidencia, proximo passo ou ressalva tecnica..."
+                          placeholder="Conclusão, evidência, próximo passo ou ressalva técnica..."
                           value={diagnosticObservations}
                           onChange={(e) => setDiagnosticObservations(e.target.value)}
                         />
@@ -1194,7 +1282,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
                       <div className="flex flex-col sm:flex-row gap-2">
                         <button type="button" onClick={saveGuidedDiagnosticToForm} className="btn-primary rounded-2xl py-3">
                           <CheckCircle2 className="w-4 h-4" />
-                          Salvar no resumo
+                          5. Salvar no resumo
                         </button>
                         <button type="button" onClick={() => resetDiagnosticForm()} className="px-4 py-3 bg-surface-50 border border-surface-200 rounded-2xl text-sm font-bold text-surface-600 hover:bg-surface-100 transition-colors">
                           Limpar campos
@@ -1225,9 +1313,9 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
                   )}
 
                   <div className="space-y-3">
-                    <h3 className="micro-label">Resumo dos diagnosticos salvos</h3>
+                    <h3 className="micro-label">Resumo técnico da O.S.</h3>
                     {formData.tests.length === 0 ? (
-                      <p className="text-center py-4 text-surface-400 text-xs font-medium italic">Nenhum diagnostico registrado nesta O.S.</p>
+                      <p className="text-center py-4 text-surface-400 text-xs font-medium italic">Nenhum diagnóstico registrado nesta O.S.</p>
                     ) : (
                       <>
                         {guidedDiagnosticTests.map((test) => {
@@ -1316,7 +1404,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
                                   </select>
                                 </div>
                                 <div className="space-y-1">
-                                  <label className="text-[10px] font-bold text-surface-400 uppercase ml-1">Observacoes tecnicas</label>
+                                  <label className="text-[10px] font-bold text-surface-400 uppercase ml-1">Observações técnicas</label>
                                   <input
                                     disabled={!canEditDiagnostics}
                                     placeholder="Condicao, oscilacao, etc..."
@@ -1338,9 +1426,9 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
                   </div>
 
                   <div className="space-y-3">
-                    <h3 className="micro-label">Historico tecnico automatico</h3>
+                    <h3 className="micro-label">Histórico técnico automático</h3>
                     {technicalHistoryPreview.length === 0 ? (
-                      <p className="text-center py-4 text-surface-400 text-xs font-medium italic">Nenhum evento tecnico derivado ainda.</p>
+                      <p className="text-center py-4 text-surface-400 text-xs font-medium italic">Nenhum evento técnico derivado ainda.</p>
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {technicalHistoryPreview.slice(0, 8).map((event, index) => (
@@ -1356,7 +1444,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
                 </FormSection>
                 )}
                 {isFullModal && (
-                <FormSection title="Itens e valores" description="Pecas aqui sao itens manuais internos da O.S.; nao criam estoque nem produto.">
+                <FormSection title="Itens e valores" description="Peças aqui são itens manuais internos da O.S.; não criam estoque nem produto.">
                 <div className="space-y-5 bg-surface-50 p-6 rounded-3xl border border-surface-200">
                   <div className="flex justify-between items-center">
                     <h3 className="micro-label">Peças e Mão de Obra</h3>
@@ -1396,8 +1484,8 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
                         value={newItem.type} 
                         onChange={e => setNewItem({...newItem, type: e.target.value as any})}
                       >
-                        <option value="parts">Peca</option>
-                        <option value="labor">Servico</option>
+                        <option value="parts">Peça</option>
+                        <option value="labor">Serviço</option>
                       </select>
                       <button 
                         type="button" 
@@ -1416,7 +1504,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
                           <div className="flex flex-col">
                             <span className="text-sm font-bold text-surface-800">{item.description}</span>
                             <span className="text-[10px] text-surface-400 font-bold uppercase tracking-widest">
-                              {item.type === 'parts' ? 'Peca' : 'Servico'} - Qtd: {item.quantity || 1}
+                              {item.type === 'parts' ? 'Peça' : 'Serviço'} - Qtd: {item.quantity || 1}
                             </span>
                           </div>
                         </div>
@@ -1435,7 +1523,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
                   type="submit" 
                   className="w-full py-4 bg-brand-primary text-white rounded-2xl font-bold text-lg shadow-xl shadow-brand-primary/20 hover:bg-brand-primary/90 transition-all active:scale-[0.99]"
                 >
-                  {modalMode === 'full' ? 'Salvar Ordem de Servico' : 'Salvar acao rapida'}
+                  {modalMode === 'full' ? 'Salvar Ordem de Serviço' : 'Salvar ação rápida'}
                 </button>
               </form>
             </motion.div>

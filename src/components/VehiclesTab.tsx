@@ -70,7 +70,7 @@ export default function VehiclesTab() {
     { value: CUSTOM_OPTION, label: 'Outro modelo' }
   ];
   const versionSelectOptions = [
-    { value: NO_VERSION_OPTION, label: 'Nao informado' },
+    { value: NO_VERSION_OPTION, label: 'Não informado' },
     ...versionOptions.map((version) => ({ value: version, label: version })),
     { value: CUSTOM_OPTION, label: 'Personalizada' }
   ];
@@ -171,7 +171,7 @@ export default function VehiclesTab() {
     e.preventDefault();
 
     if (user?.permissions === 'technician') {
-      toast.error('Tecnicos nao podem cadastrar veiculos.');
+      toast.error('Técnicos não podem cadastrar veículos.');
       return;
     }
 
@@ -189,12 +189,12 @@ export default function VehiclesTab() {
     }
 
     if (!make || !model) {
-      toast.error('Selecione marca e modelo do veiculo.');
+      toast.error('Selecione marca e modelo do veículo.');
       return;
     }
 
     if (!formData.fuel) {
-      toast.error('Selecione o combustivel do veiculo.');
+      toast.error('Selecione o combustível do veículo.');
       return;
     }
 
@@ -219,10 +219,10 @@ export default function VehiclesTab() {
       }
       fetchVehicles();
       setIsModalOpen(false);
-      toast.success(editingVehicle ? 'Veiculo atualizado!' : 'Veiculo cadastrado!');
+      toast.success(editingVehicle ? 'Veículo atualizado!' : 'Veículo cadastrado!');
     } catch (err) {
       console.error(err);
-      toast.error(err instanceof ApiError ? err.message : 'Erro de conexao ao salvar veiculo');
+      toast.error(err instanceof ApiError ? err.message : 'Erro de conexao ao salvar veículo');
     }
   };
   const deleteVehicle = async (id: number) => {
@@ -566,11 +566,11 @@ export default function VehiclesTab() {
                   </div>
                   <div className="space-y-2">
                     <SearchableSelect
-                      label="Combustivel"
+                      label="Combustível"
                       required
                       value={formData.fuel}
                       options={fuelSelectOptions}
-                      searchPlaceholder="Buscar combustivel..."
+                      searchPlaceholder="Buscar combustível..."
                       icon={<Fuel className="w-5 h-5" />}
                       onChange={(fuel) => setFormData({...formData, fuel})}
                     />

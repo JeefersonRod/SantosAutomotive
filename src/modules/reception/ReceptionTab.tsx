@@ -26,9 +26,9 @@ type Step = 'client' | 'vehicle' | 'complaint' | 'review';
 const stepOrder: Step[] = ['client', 'vehicle', 'complaint', 'review'];
 const stepLabels: Record<Step, string> = {
   client: 'Cliente',
-  vehicle: 'Veiculo',
+  vehicle: 'Veículo',
   complaint: 'Queixa',
-  review: 'Revisao'
+  review: 'Revisão'
 };
 
 export default function ReceptionTab({ onNavigate }: { onNavigate: (tab: string) => void }) {
@@ -90,17 +90,17 @@ export default function ReceptionTab({ onNavigate }: { onNavigate: (tab: string)
     { value: CUSTOM_OPTION, label: 'Outro modelo' }
   ];
   const versionSelectOptions = [
-    { value: NO_VERSION_OPTION, label: 'Nao informado' },
+    { value: NO_VERSION_OPTION, label: 'Não informado' },
     ...versionOptions.map((version) => ({ value: version, label: version })),
     { value: CUSTOM_OPTION, label: 'Personalizada' }
   ];
   const yearSelectOptions = [
-    { value: '', label: 'Nao informado' },
+    { value: '', label: 'Não informado' },
     ...yearOptions.map((year) => ({ value: String(year), label: String(year) }))
   ];
   const fuelSelectOptions = fuelOptions.map((fuel) => ({ value: fuel, label: fuel }));
   const engineSelectOptions = [
-    { value: '', label: 'Nao informado' },
+    { value: '', label: 'Não informado' },
     ...engineOptions.map((engine) => ({ value: engine, label: engine })),
     { value: CUSTOM_OPTION, label: 'Personalizada' }
   ];
@@ -159,7 +159,7 @@ export default function ReceptionTab({ onNavigate }: { onNavigate: (tab: string)
 
   const moveToStep = (targetStep: Step) => {
     if (targetStep === 'vehicle' && !selectedClient) return toast.error('Selecione ou cadastre um cliente primeiro.');
-    if (targetStep === 'complaint' && !selectedVehicle) return toast.error('Selecione ou cadastre um veiculo primeiro.');
+    if (targetStep === 'complaint' && !selectedVehicle) return toast.error('Selecione ou cadastre um veículo primeiro.');
     if (targetStep === 'review' && !orderForm.complaint.trim()) return toast.error('Informe a queixa inicial do cliente.');
     setStep(targetStep);
   };
@@ -220,12 +220,12 @@ export default function ReceptionTab({ onNavigate }: { onNavigate: (tab: string)
     const version = normalizeVehicleText(vehicleForm.version === CUSTOM_OPTION ? vehicleForm.customVersion : vehicleForm.version);
     const engine = normalizeVehicleText(vehicleForm.engine === CUSTOM_OPTION ? vehicleForm.customEngine : vehicleForm.engine);
 
-    if (!plate || !make || !model) return toast.error('Informe placa, marca e modelo do veiculo.');
+    if (!plate || !make || !model) return toast.error('Informe placa, marca e modelo do veículo.');
 
     const duplicate = vehicles.find((vehicle) => normalizePlate(vehicle.plate || '') === plate);
     if (duplicate) {
       selectVehicle(duplicate);
-      toast.info('Veiculo existente selecionado.');
+      toast.info('Veículo existente selecionado.');
       return;
     }
 
@@ -244,10 +244,10 @@ export default function ReceptionTab({ onNavigate }: { onNavigate: (tab: string)
       const vehicleWithClient = { ...vehicle, client_name: selectedClient.name };
       setVehicles((current) => [vehicleWithClient, ...current]);
       selectVehicle(vehicleWithClient);
-      toast.success('Veiculo cadastrado.');
+      toast.success('Veículo cadastrado.');
     } catch (err) {
       console.error('Failed to create quick vehicle:', err);
-      toast.error(err instanceof ApiError ? err.message : 'Erro ao cadastrar veiculo');
+      toast.error(err instanceof ApiError ? err.message : 'Erro ao cadastrar veículo');
     } finally {
       setSaving(false);
     }
@@ -255,7 +255,7 @@ export default function ReceptionTab({ onNavigate }: { onNavigate: (tab: string)
 
   const createServiceOrder = async () => {
     if (!selectedClient) return toast.error('Selecione um cliente.');
-    if (!selectedVehicle) return toast.error('Selecione um veiculo.');
+    if (!selectedVehicle) return toast.error('Selecione um veículo.');
     const complaint = orderForm.complaint.trim();
     if (!complaint) return toast.error('Informe a queixa inicial.');
 
@@ -306,7 +306,7 @@ export default function ReceptionTab({ onNavigate }: { onNavigate: (tab: string)
     <div className="space-y-6">
       <PageHeader
         title="Atendimento"
-        description="Recepcao rapida para localizar cliente, vincular veiculo e abrir O.S."
+        description="Recepção rapida para localizar cliente, vincular veículo e abrir O.S."
         actions={createdOrderId && (
           <Button variant="secondary" onClick={() => onNavigate('orders')} icon={<ClipboardCheck className="w-4 h-4" />}>
             Abrir O.S.
@@ -400,7 +400,7 @@ export default function ReceptionTab({ onNavigate }: { onNavigate: (tab: string)
 
       {!createdOrderId && step === 'vehicle' && (
         <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-          <FormSection title="Buscar veiculo" description={`Cliente selecionado: ${selectedClient?.name || 'nenhum'}.`}>
+          <FormSection title="Buscar veículo" description={`Cliente selecionado: ${selectedClient?.name || 'nenhum'}.`}>
             <Input
               icon={<Search className="w-4 h-4" />}
               placeholder="Placa, modelo ou marca"
@@ -414,7 +414,7 @@ export default function ReceptionTab({ onNavigate }: { onNavigate: (tab: string)
                     <div className="flex items-center justify-between gap-4">
                       <div>
                         <p className="font-bold text-surface-900">{vehicle.plate} - {vehicle.model}</p>
-                        <p className="text-xs font-medium text-surface-500">{vehicle.make || 'Marca nao informada'} {vehicle.year ? `- ${vehicle.year}` : ''}</p>
+                        <p className="text-xs font-medium text-surface-500">{vehicle.make || 'Marca não informada'} {vehicle.year ? `- ${vehicle.year}` : ''}</p>
                       </div>
                       <Button size="sm" variant="secondary">Selecionar</Button>
                     </div>
@@ -423,13 +423,13 @@ export default function ReceptionTab({ onNavigate }: { onNavigate: (tab: string)
               ))}
               {filteredVehicles.length === 0 && (
                 <p className="rounded-xl border border-dashed border-surface-200 bg-white p-4 text-sm font-medium text-surface-500">
-                  Nenhum veiculo deste cliente encontrado. Cadastre ao lado.
+                  Nenhum veículo deste cliente encontrado. Cadastre ao lado.
                 </p>
               )}
             </div>
           </FormSection>
 
-          <FormSection title="Cadastro rapido de veiculo" description="O veiculo sera vinculado ao cliente selecionado.">
+          <FormSection title="Cadastro rapido de veículo" description="O veículo sera vinculado ao cliente selecionado.">
             <Input label="Placa" required value={vehicleForm.plate} onChange={(event) => setVehicleForm({ ...vehicleForm, plate: normalizePlate(event.target.value) })} />
             <SearchableSelect
               label="Marca"
@@ -485,10 +485,10 @@ export default function ReceptionTab({ onNavigate }: { onNavigate: (tab: string)
             </div>
             <div className="grid grid-cols-2 gap-3">
               <SearchableSelect
-                label="Combustivel"
+                label="Combustível"
                 value={vehicleForm.fuel}
                 options={fuelSelectOptions}
-                searchPlaceholder="Buscar combustivel..."
+                searchPlaceholder="Buscar combustível..."
                 onChange={(fuel) => setVehicleForm({ ...vehicleForm, fuel })}
               />
               <SearchableSelect
@@ -511,29 +511,29 @@ export default function ReceptionTab({ onNavigate }: { onNavigate: (tab: string)
       )}
 
       {!createdOrderId && step === 'complaint' && (
-        <FormSection title="Queixa inicial e recepcao" description="Esses dados abrem a O.S. com status Recepcao/Pendente.">
+        <FormSection title="Queixa inicial e recepção" description="Esses dados abrem a O.S. com status Recepção/Pendente.">
           <div className="grid gap-4 lg:grid-cols-2">
             <Card className="p-4">
               <p className="text-xs font-bold uppercase tracking-wider text-surface-400">Cliente</p>
               <p className="mt-1 font-bold text-surface-900">{selectedClient?.name}</p>
-              <p className="text-sm text-surface-500">{selectedClient?.phone || selectedClient?.email || 'Contato nao informado'}</p>
+              <p className="text-sm text-surface-500">{selectedClient?.phone || selectedClient?.email || 'Contato não informado'}</p>
             </Card>
             <Card className="p-4">
-              <p className="text-xs font-bold uppercase tracking-wider text-surface-400">Veiculo</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-surface-400">Veículo</p>
               <p className="mt-1 font-bold text-surface-900">{selectedVehicle?.plate} - {selectedVehicle?.model}</p>
-              <p className="text-sm text-surface-500">{selectedVehicle?.make || 'Marca nao informada'}</p>
+              <p className="text-sm text-surface-500">{selectedVehicle?.make || 'Marca não informada'}</p>
             </Card>
           </div>
           <Textarea
             label="Queixa inicial do cliente"
             required
-            placeholder="Ex: falhando em baixa, luz da injecao acesa, demora para pegar..."
+            placeholder="Ex: falhando em baixa, luz da injeção acesa, demora para pegar..."
             value={orderForm.complaint}
             onChange={(event) => setOrderForm({ ...orderForm, complaint: event.target.value })}
           />
           <Textarea
-            label="Observacoes da recepcao"
-            placeholder="Ex: cliente deixou chave reserva, autorizou diagnostico inicial..."
+            label="Observações da recepção"
+            placeholder="Ex: cliente deixou chave reserva, autorizou diagnóstico inicial..."
             value={orderForm.receptionNotes}
             onChange={(event) => setOrderForm({ ...orderForm, receptionNotes: event.target.value })}
           />
@@ -579,7 +579,7 @@ export default function ReceptionTab({ onNavigate }: { onNavigate: (tab: string)
       )}
 
       {!createdOrderId && step === 'review' && (
-        <FormSection title="Revisao e criacao da O.S." description="Confira os dados antes de abrir a Ordem de Servico.">
+        <FormSection title="Revisão e criação da O.S." description="Confira os dados antes de abrir a Ordem de Serviço.">
           <div className="grid gap-4 lg:grid-cols-3">
             <Card className="p-4">
               <Badge tone="blue">Cliente</Badge>
@@ -587,14 +587,14 @@ export default function ReceptionTab({ onNavigate }: { onNavigate: (tab: string)
               <p className="text-sm text-surface-500">{selectedClient?.phone || 'Sem telefone'}</p>
             </Card>
             <Card className="p-4">
-              <Badge tone="blue">Veiculo</Badge>
+              <Badge tone="blue">Veículo</Badge>
               <p className="mt-3 font-bold text-surface-900">{selectedVehicle?.plate}</p>
               <p className="text-sm text-surface-500">{selectedVehicle?.model}</p>
             </Card>
             <Card className="p-4">
               <Badge tone={orderForm.isPriority ? 'amber' : 'neutral'}>{orderForm.isPriority ? 'Prioritaria' : 'Normal'}</Badge>
               <p className="mt-3 font-bold text-surface-900">Status: pending</p>
-              <p className="text-sm text-surface-500">Recepcao / Pendente</p>
+              <p className="text-sm text-surface-500">Recepção / Pendente</p>
             </Card>
           </div>
           <Card className="p-4">

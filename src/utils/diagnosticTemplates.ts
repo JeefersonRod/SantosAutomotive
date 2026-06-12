@@ -32,31 +32,31 @@ export const DIAGNOSTIC_RESULT_OPTIONS: Array<{ value: DiagnosticResultStatus; l
   { value: 'aprovado', label: 'Aprovado' },
   { value: 'reprovado', label: 'Reprovado' },
   { value: 'inconclusivo', label: 'Inconclusivo' },
-  { value: 'nao_realizado', label: 'Nao realizado' }
+  { value: 'nao_realizado', label: 'Não realizado' }
 ];
 
-export const TECHNICAL_SYMPTOM_TEST_NAME = 'Sintomas tecnicos constatados';
+export const TECHNICAL_SYMPTOM_TEST_NAME = 'Sintomas técnicos constatados';
 
 export const TECHNICAL_SYMPTOM_OPTIONS = [
-  'Nao liga / nao da partida',
+  'Não liga / não dá partida',
   'Liga e morre',
   'Demora para pegar',
   'Falha / engasga',
   'Marcha lenta irregular',
-  'Perda de potencia',
+  'Perda de potência',
   'Consumo alto',
-  'Luz de injecao acesa',
+  'Luz de injeção acesa',
   'Luz de bateria acesa',
   'Superaquecimento',
-  'Fumaca',
-  'Cheiro de combustivel',
+  'Fumaça',
+  'Cheiro de combustível',
   'Vazamento',
   'Barulho anormal',
-  'Vibracao',
+  'Vibração',
   'Bateria descarregando',
-  'Ar-condicionado nao gela',
+  'Ar-condicionado não gela',
   'Intermitente',
-  'Revisao preventiva / sem queixa'
+  'Revisão preventiva / sem queixa'
 ] as const;
 
 const TEST_CONDITION_FIELDS: DiagnosticField[] = [
@@ -69,94 +69,84 @@ const TEST_CONDITION_FIELDS: DiagnosticField[] = [
   { key: 'rpm', label: 'RPM informado', type: 'number', unit: 'RPM', placeholder: 'Preencher quando a condicao for RPM informado' }
 ];
 
-const PANEL_LIGHT_FIELDS: DiagnosticField[] = [
-  {
-    key: 'panel_lights',
-    label: 'Luzes de painel como evidencia tecnica',
-    type: 'select',
-    options: ['injecao', 'ABS', 'airbag', 'EPS', 'bateria', 'temperatura', 'outras', 'nenhuma']
-  },
-  { key: 'panel_light_notes', label: 'Observacao das luzes de painel', type: 'textarea' }
-];
-
 const withCondition = (fields: DiagnosticField[]) => [...TEST_CONDITION_FIELDS, ...fields];
 
 export const DIAGNOSTIC_TEMPLATES: DiagnosticTemplate[] = [
   {
     key: 'electrical_power_supply',
-    name: 'Sistema eletrico e alimentacao',
-    shortName: 'Eletrico base',
-    category: 'Sistema Eletrico e Alimentacao',
-    system: 'Sistema Eletrico e Alimentacao',
+    name: 'Sistema elétrico e alimentação',
+    shortName: 'Elétrico base',
+    category: 'Sistema Elétrico e Alimentação',
+    system: 'Sistema Elétrico e Alimentação',
     component: 'Bateria, alternador, aterramentos e cabos',
     aliases: ['Bateria e sistema de carga'],
-    relatedSystems: ['partida e carga', 'alimentacao ECU'],
-    relatedComponents: ['bateria', 'alternador', 'aterramentos', 'cabos', 'alimentacao ECU'],
+    relatedSystems: ['partida e carga', 'alimentação ECU'],
+    relatedComponents: ['bateria', 'alternador', 'aterramentos', 'cabos', 'alimentação ECU'],
     fields: [
-      ...PANEL_LIGHT_FIELDS,
-      { key: 'battery_rest_voltage', label: 'Tensao em repouso', type: 'number', unit: 'V', reference: 'Esperado: 12,6V a 12,8V' },
-      { key: 'cranking_voltage', label: 'Tensao durante partida', type: 'number', unit: 'V', reference: 'Minimo recomendado: 10,5V' },
-      { key: 'charging_voltage', label: 'Tensao de carga', type: 'number', unit: 'V' },
-      { key: 'voltage_drop', label: 'Queda de tensao', type: 'number', unit: 'mV' },
+
+      { key: 'battery_rest_voltage', label: 'Tensão em repouso', type: 'number', unit: 'V', reference: 'Esperado: 12,6V a 12,8V' },
+      { key: 'cranking_voltage', label: 'Tensão durante partida', type: 'number', unit: 'V', reference: 'Mínimo recomendado: 10,5V' },
+      { key: 'charging_voltage', label: 'Tensão de carga', type: 'number', unit: 'V' },
+      { key: 'voltage_drop', label: 'Queda de tensão', type: 'number', unit: 'mV' },
       { key: 'current', label: 'Corrente medida', type: 'number', unit: 'A' },
-      { key: 'ground_notes', label: 'Aterramentos e cabos', type: 'textarea', placeholder: 'Bornes, zinabre, aperto, oxidacao, cabo positivo/negativo...' },
-      { key: 'ecu_power_notes', label: 'Alimentacao ECU', type: 'textarea' },
-      { key: 'technical_notes', label: 'Observacoes do sistema eletrico', type: 'textarea' }
+      { key: 'ground_notes', label: 'Aterramentos e cabos', type: 'textarea', placeholder: 'Bornes, zinabre, aperto, oxidação, cabo positivo/negativo...' },
+      { key: 'ecu_power_notes', label: 'Alimentação ECU', type: 'textarea' },
+      { key: 'technical_notes', label: 'Observações do sistema elétrico', type: 'textarea' }
     ]
   },
   {
     key: 'fuel_low_pressure',
-    name: 'Alimentacao de combustivel - baixa pressao',
-    shortName: 'Baixa pressao',
-    category: 'Sistema de Alimentacao de Combustivel',
-    system: 'Sistema de Alimentacao de Combustivel',
+    name: 'Alimentação de combustível - baixa pressão',
+    shortName: 'Baixa pressão',
+    category: 'Sistema de Alimentação de Combustível',
+    system: 'Sistema de Alimentação de Combustível',
     component: 'Bomba baixa, filtro e linha',
-    aliases: ['Alimentacao de combustivel'],
-    relatedComponents: ['bomba baixa', 'filtro combustivel', 'linha de combustivel'],
+    aliases: ['Alimentação de combustível'],
+    relatedComponents: ['bomba baixa', 'filtro combustível', 'linha de combustível'],
     possibleDtcs: ['P0087'],
     fields: withCondition([
-      { key: 'pump_voltage', label: 'Alimentacao da bomba baixa', type: 'number', unit: 'V' },
+      { key: 'pump_voltage', label: 'Alimentação da bomba baixa', type: 'number', unit: 'V' },
       { key: 'pump_pwm', label: 'Comando/PWM da bomba', type: 'number', unit: '%' },
-      { key: 'low_pressure', label: 'Pressao de baixa', type: 'number', unit: 'BAR' },
-      { key: 'flow', label: 'Vazao', type: 'number', unit: 'L/H' },
-      { key: 'filter_condition', label: 'Filtro combustivel', type: 'select', options: ['ok', 'restrito', 'contaminado', 'nao verificado'] },
-      { key: 'tightness', label: 'Estanqueidade', type: 'select', options: ['sim', 'nao', 'nao verificado'] },
-      { key: 'notes', label: 'Observacoes', type: 'textarea' }
+      { key: 'low_pressure', label: 'Pressão de baixa', type: 'number', unit: 'BAR' },
+      { key: 'flow', label: 'Vazão', type: 'number', unit: 'L/H' },
+      { key: 'filter_condition', label: 'Filtro combustível', type: 'select', options: ['ok', 'restrito', 'contaminado', 'não verificado'] },
+      { key: 'tightness', label: 'Estanqueidade', type: 'select', options: ['sim', 'não', 'não verificado'] },
+      { key: 'notes', label: 'Observações', type: 'textarea' }
     ])
   },
   {
     key: 'fuel_high_pressure',
-    name: 'Alimentacao de combustivel - alta pressao',
-    shortName: 'Alta pressao',
-    category: 'Sistema de Alimentacao de Combustivel',
-    system: 'Sistema de Alimentacao de Combustivel',
+    name: 'Alimentação de combustível - alta pressão',
+    shortName: 'Alta pressão',
+    category: 'Sistema de Alimentação de Combustível',
+    system: 'Sistema de Alimentação de Combustível',
     component: 'Bomba alta, rail, sensor e regulador',
-    relatedComponents: ['bomba alta', 'rail', 'sensor pressao rail', 'regulador'],
+    relatedComponents: ['bomba alta', 'rail', 'sensor pressão rail', 'regulador'],
     possibleDtcs: ['P0087', 'P0190', 'P0191'],
     fields: withCondition([
-      { key: 'rail_pressure_target', label: 'Pressao rail desejada', type: 'number', unit: 'BAR' },
-      { key: 'rail_pressure_actual', label: 'Pressao rail medida', type: 'number', unit: 'BAR' },
-      { key: 'rail_sensor_signal', label: 'Sinal sensor pressao rail', type: 'number', unit: 'V' },
+      { key: 'rail_pressure_target', label: 'Pressão rail desejada', type: 'number', unit: 'BAR' },
+      { key: 'rail_pressure_actual', label: 'Pressão rail medida', type: 'number', unit: 'BAR' },
+      { key: 'rail_sensor_signal', label: 'Sinal sensor pressão rail', type: 'number', unit: 'V' },
       { key: 'regulator_command', label: 'Comando regulador', type: 'text', placeholder: 'PWM, corrente, duty...' },
       { key: 'leak_return', label: 'Retorno/vazamento dos injetores', type: 'textarea' },
-      { key: 'notes', label: 'Observacoes', type: 'textarea' }
+      { key: 'notes', label: 'Observações', type: 'textarea' }
     ])
   },
   {
     key: 'fuel_injectors',
-    name: 'Injetores de combustivel',
+    name: 'Injetores de combustível',
     shortName: 'Injetores',
-    category: 'Sistema de Alimentacao de Combustivel',
-    system: 'Sistema de Alimentacao de Combustivel',
+    category: 'Sistema de Alimentação de Combustível',
+    system: 'Sistema de Alimentação de Combustível',
     component: 'Injetores',
     relatedComponents: ['injetores'],
     fields: withCondition([
-      { key: 'injection_time', label: 'Tempo de injecao', type: 'number', unit: 'ms' },
-      { key: 'injector_voltage', label: 'Alimentacao do injetor', type: 'number', unit: 'V' },
-      { key: 'injector_resistance', label: 'Resistencia do injetor', type: 'text' },
+      { key: 'injection_time', label: 'Tempo de injeção', type: 'number', unit: 'ms' },
+      { key: 'injector_voltage', label: 'Alimentação do injetor', type: 'number', unit: 'V' },
+      { key: 'injector_resistance', label: 'Resistência do injetor', type: 'text' },
       { key: 'spray_pattern', label: 'Padrao de pulverizacao/leque', type: 'text' },
       { key: 'balance_test', label: 'Teste de balanceamento/retorno', type: 'textarea' },
-      { key: 'notes', label: 'Observacoes', type: 'textarea' }
+      { key: 'notes', label: 'Observações', type: 'textarea' }
     ])
   },
   {
@@ -175,8 +165,8 @@ export const DIAGNOSTIC_TEMPLATES: DiagnosticTemplate[] = [
       { key: 'map_idle_mbar', label: 'MAP marcha lenta absoluta', type: 'number', unit: 'mbar' },
       { key: 'map_idle_volts', label: 'MAP marcha lenta', type: 'number', unit: 'V' },
       { key: 'map_accel_volts', label: 'MAP aceleracao variacao', type: 'number', unit: 'V' },
-      { key: 'barometric_pressure', label: 'Pressao barometrica local', type: 'number', unit: 'mbar' },
-      { key: 'notes', label: 'Observacoes', type: 'textarea' }
+      { key: 'barometric_pressure', label: 'Pressão barometrica local', type: 'number', unit: 'mbar' },
+      { key: 'notes', label: 'Observações', type: 'textarea' }
     ])
   },
   {
@@ -190,12 +180,12 @@ export const DIAGNOSTIC_TEMPLATES: DiagnosticTemplate[] = [
     relatedComponents: ['MAF', 'IAT'],
     possibleDtcs: ['P0101', 'P0110'],
     fields: withCondition([
-      { key: 'maf_type', label: 'Tipo MAF', type: 'select', options: ['analogico', 'digital', 'nao aplicado'] },
+      { key: 'maf_type', label: 'Tipo MAF', type: 'select', options: ['analogico', 'digital', 'não aplicado'] },
       { key: 'maf_reading', label: 'Leitura MAF', type: 'text', placeholder: 'g/s, kg/h, Hz ou V' },
       { key: 'iat_cold', label: 'IAT frio', type: 'number', unit: 'C' },
       { key: 'iat_hot', label: 'IAT quente', type: 'number', unit: 'C' },
       { key: 'cold_difference', label: 'Diferenca fase fria', type: 'number', unit: 'C', reference: 'Maximo recomendado: 3 C' },
-      { key: 'notes', label: 'Observacoes', type: 'textarea' }
+      { key: 'notes', label: 'Observações', type: 'textarea' }
     ])
   },
   {
@@ -207,8 +197,8 @@ export const DIAGNOSTIC_TEMPLATES: DiagnosticTemplate[] = [
     component: 'Filtro de ar, mangueiras, vazamentos e coletor',
     relatedComponents: ['filtro de ar', 'mangueiras', 'vazamentos', 'coletor'],
     fields: withCondition([
-      { key: 'air_filter_condition', label: 'Filtro de ar', type: 'select', options: ['ok', 'sujo', 'restrito', 'ausente', 'nao verificado'] },
-      { key: 'hoses_condition', label: 'Mangueiras/admissao', type: 'select', options: ['ok', 'ressecadas', 'soltas', 'trincadas', 'nao verificado'] },
+      { key: 'air_filter_condition', label: 'Filtro de ar', type: 'select', options: ['ok', 'sujo', 'restrito', 'ausente', 'não verificado'] },
+      { key: 'hoses_condition', label: 'Mangueiras/admissao', type: 'select', options: ['ok', 'ressecadas', 'soltas', 'trincadas', 'não verificado'] },
       { key: 'leak_test', label: 'Teste de vazamento/entrada falsa', type: 'textarea' },
       { key: 'manifold_notes', label: 'Coletor', type: 'textarea' }
     ])
@@ -221,20 +211,20 @@ export const DIAGNOSTIC_TEMPLATES: DiagnosticTemplate[] = [
     system: 'Sistema de Arrefecimento',
     component: 'ECT, valvula, ventoinha, bomba e fluido',
     aliases: ['Sensores de temperatura'],
-    relatedComponents: ['ECT', 'valvula termostatica', 'ventoinha', "bomba d'agua", 'reservatorio', 'pressao do sistema', 'tipo do fluido'],
+    relatedComponents: ['ECT', 'válvula termostática', 'ventoinha', "bomba d'água", 'reservatório', 'pressão do sistema', 'tipo do fluido'],
     fields: withCondition([
       { key: 'ect_cold', label: 'ECT frio', type: 'number', unit: 'C' },
       { key: 'ect_hot', label: 'ECT quente', type: 'number', unit: 'C' },
       { key: 'fan_activation', label: 'Acionamento da ventoinha', type: 'text' },
-      { key: 'thermostatic_valve', label: 'Valvula termostatica', type: 'select', options: ['ok', 'travada aberta', 'travada fechada', 'nao verificada'] },
-      { key: 'system_pressure', label: 'Pressao do sistema', type: 'number', unit: 'BAR' },
+      { key: 'thermostatic_valve', label: 'Válvula termostática', type: 'select', options: ['ok', 'travada aberta', 'travada fechada', 'não verificada'] },
+      { key: 'system_pressure', label: 'Pressão do sistema', type: 'number', unit: 'BAR' },
       { key: 'fluid_type', label: 'Tipo/condicao do fluido', type: 'text' },
       { key: 'reservoir_notes', label: 'Reservatorio e vazamentos', type: 'textarea' }
     ])
   },
   {
     key: 'ckp_sensor',
-    name: 'CKP - sensor de rotacao',
+    name: 'CKP - sensor de rotação',
     shortName: 'CKP',
     category: 'Sistema CKP/CMP e Sincronismo',
     system: 'Sistema CKP/CMP e Sincronismo',
@@ -244,8 +234,8 @@ export const DIAGNOSTIC_TEMPLATES: DiagnosticTemplate[] = [
     possibleDtcs: ['P0335'],
     fields: withCondition([
       { key: 'sensor_type', label: 'Tipo CKP', type: 'select', options: ['indutivo', 'hall', 'magneto resistivo'] },
-      { key: 'power_supply', label: 'Alimentacao', type: 'text' },
-      { key: 'resistance', label: 'Resistencia', type: 'text' },
+      { key: 'power_supply', label: 'Alimentação', type: 'text' },
+      { key: 'resistance', label: 'Resistência', type: 'text' },
       { key: 'scanner_rpm', label: 'RPM scanner', type: 'number', unit: 'RPM' },
       { key: 'signal_notes', label: 'Sinal e roda fonica', type: 'textarea' }
     ])
@@ -262,7 +252,7 @@ export const DIAGNOSTIC_TEMPLATES: DiagnosticTemplate[] = [
     possibleDtcs: ['P0340'],
     fields: withCondition([
       { key: 'sensor_type', label: 'Tipo CMP', type: 'select', options: ['indutivo', 'hall', 'magneto resistivo'] },
-      { key: 'power_supply', label: 'Alimentacao', type: 'text' },
+      { key: 'power_supply', label: 'Alimentação', type: 'text' },
       { key: 'reference', label: 'Referencia', type: 'text' },
       { key: 'phase_signal', label: 'Sinal de fase', type: 'textarea' },
       { key: 'sync_notes', label: 'Sincronismo CKP/CMP', type: 'textarea' }
@@ -278,8 +268,8 @@ export const DIAGNOSTIC_TEMPLATES: DiagnosticTemplate[] = [
     aliases: ['Sistema de aceleracao / Pedal / TBI'],
     relatedComponents: ['APP', 'pedal'],
     fields: withCondition([
-      { key: 'track_1_power', label: 'Alimentacao pista 1', type: 'number', unit: 'V' },
-      { key: 'track_2_power', label: 'Alimentacao pista 2', type: 'number', unit: 'V' },
+      { key: 'track_1_power', label: 'Alimentação pista 1', type: 'number', unit: 'V' },
+      { key: 'track_2_power', label: 'Alimentação pista 2', type: 'number', unit: 'V' },
       { key: 'track_1_signal', label: 'Sinal pista 1', type: 'number', unit: 'V' },
       { key: 'track_2_signal', label: 'Sinal pista 2', type: 'number', unit: 'V' },
       { key: 'pedal_coherence', label: 'Coerencia do pedal', type: 'textarea' }
@@ -299,26 +289,26 @@ export const DIAGNOSTIC_TEMPLATES: DiagnosticTemplate[] = [
       { key: 'tps_2_signal', label: 'Sinal TPS 2', type: 'number', unit: 'V', reference: 'Soma das pistas proxima de 5V quando aplicavel' },
       { key: 'motor_command', label: 'Comando do motor TBI', type: 'text' },
       { key: 'tbi_cleaning_condition', label: 'Condicao mecanica/carbonizacao', type: 'textarea' },
-      { key: 'ecu_processing', label: 'ECU processa sinal', type: 'select', options: ['sim', 'nao', 'inconclusivo'] }
+      { key: 'ecu_processing', label: 'ECU processa sinal', type: 'select', options: ['sim', 'não', 'inconclusivo'] }
     ])
   },
   {
     key: 'ignition_system',
     name: 'Sistema de ignicao',
-    shortName: 'Ignicao',
-    category: 'Sistema de Ignicao',
-    system: 'Sistema de Ignicao',
+    shortName: 'Ignição',
+    category: 'Sistema de Ignição',
+    system: 'Sistema de Ignição',
     component: 'Bobinas, velas, cabos e misfire',
     relatedComponents: ['bobinas', 'velas', 'cabos', 'misfire'],
     fields: withCondition([
       { key: 'primary_coil', label: 'Bobina primario', type: 'text' },
       { key: 'secondary_coil', label: 'Bobina secundario', type: 'text' },
-      { key: 'power_supply', label: 'Alimentacao', type: 'number', unit: 'V' },
+      { key: 'power_supply', label: 'Alimentação', type: 'number', unit: 'V' },
       { key: 'current', label: 'Corrente', type: 'number', unit: 'A' },
       { key: 'burn_time', label: 'Tempo de queima', type: 'text' },
       { key: 'spark_wire', label: 'Cabos', type: 'text' },
       { key: 'spark_plugs', label: 'Velas', type: 'textarea', placeholder: 'Aplicacao, torque, trincas, gap...' },
-      { key: 'misfire', label: 'Misfire/falha de combustao', type: 'select', options: ['sim', 'nao', 'inconclusivo'] },
+      { key: 'misfire', label: 'Misfire/falha de combustão', type: 'select', options: ['sim', 'não', 'inconclusivo'] },
       { key: 'cylinders', label: 'Cilindros envolvidos', type: 'text' }
     ])
   },
@@ -333,10 +323,10 @@ export const DIAGNOSTIC_TEMPLATES: DiagnosticTemplate[] = [
     relatedComponents: ['sonda lambda', 'aquecedor da sonda'],
     fields: withCondition([
       { key: 'identification', label: 'Identificacao correta', type: 'textarea', placeholder: 'Pre/pos, estreita/larga, planar, AF...' },
-      { key: 'heater_pre', label: 'Aquecedor pre', type: 'textarea', placeholder: 'Resistencia, alimentacao, PWM/Hz, corrente...' },
+      { key: 'heater_pre', label: 'Aquecedor pré', type: 'textarea', placeholder: 'Resistência, alimentação, PWM/Hz, corrente...' },
       { key: 'heater_post', label: 'Aquecedor pos', type: 'textarea' },
-      { key: 'reference_voltage', label: 'Tensao de referencia', type: 'text' },
-      { key: 'voltage_response', label: 'Resposta em tensao', type: 'text' },
+      { key: 'reference_voltage', label: 'Tensão de referencia', type: 'text' },
+      { key: 'voltage_response', label: 'Resposta em tensão', type: 'text' },
       { key: 'current_response', label: 'Resposta em corrente', type: 'text' },
       { key: 'stft', label: 'STFT', type: 'text' },
       { key: 'ltft', label: 'LTFT', type: 'text' },
@@ -350,40 +340,40 @@ export const DIAGNOSTIC_TEMPLATES: DiagnosticTemplate[] = [
     category: 'Sistema de Emissoes',
     system: 'Sistema de Emissoes',
     component: 'EGR, catalisador e canister',
-    aliases: ['Causas provaveis de perda de A/F', 'Combustivel e A/F'],
+    aliases: ['Causas provaveis de perda de A/F', 'Combustível e A/F'],
     relatedComponents: ['EGR', 'catalisador', 'canister'],
     possibleDtcs: ['P0401'],
     fields: withCondition([
-      { key: 'egr_condition', label: 'EGR', type: 'select', options: ['ok', 'travada aberta', 'travada fechada', 'restrita', 'nao verificada'] },
+      { key: 'egr_condition', label: 'EGR', type: 'select', options: ['ok', 'travada aberta', 'travada fechada', 'restrita', 'não verificada'] },
       { key: 'catalyst_condition', label: 'Catalisador', type: 'textarea' },
       { key: 'canister_seal', label: 'Canister vedacao', type: 'text' },
-      { key: 'canister_pwm', label: 'Canister tensao/PWM', type: 'text' },
+      { key: 'canister_pwm', label: 'Canister tensão/PWM', type: 'text' },
       { key: 'af_evidence', label: 'Evidencia de perda de A/F', type: 'textarea' },
       { key: 'recommended_action', label: 'Acao recomendada', type: 'textarea' }
     ])
   },
   {
     key: 'electrical_communication',
-    name: 'Sistema eletrico e comunicacao',
-    shortName: 'Comunicacao',
-    category: 'Sistema Eletrico e Comunicacao',
-    system: 'Sistema Eletrico e Comunicacao',
-    component: 'Rede CAN, modulos e ECU',
-    relatedComponents: ['rede CAN', 'modulos', 'ECU', 'alimentacao dos modulos'],
+    name: 'Sistema elétrico e comunicacao',
+    shortName: 'Comunicação',
+    category: 'Sistema Elétrico e Comunicação',
+    system: 'Sistema Elétrico e Comunicação',
+    component: 'Rede CAN, módulos e ECU',
+    relatedComponents: ['rede CAN', 'módulos', 'ECU', 'alimentação dos módulos'],
     fields: [
-      ...PANEL_LIGHT_FIELDS,
-      { key: 'module_power', label: 'Alimentacao dos modulos', type: 'text' },
-      { key: 'module_ground', label: 'Aterramento dos modulos', type: 'text' },
+
+      { key: 'module_power', label: 'Alimentação dos módulos', type: 'text' },
+      { key: 'module_ground', label: 'Aterramento dos módulos', type: 'text' },
       { key: 'can_high', label: 'CAN High', type: 'text' },
       { key: 'can_low', label: 'CAN Low', type: 'text' },
-      { key: 'network_resistance', label: 'Resistencia da rede', type: 'text' },
-      { key: 'scanner_communication', label: 'Comunicacao com scanner', type: 'select', options: ['normal', 'intermitente', 'sem comunicacao'] },
-      { key: 'module_notes', label: 'Modulos/ECU', type: 'textarea' }
+      { key: 'network_resistance', label: 'Resistência da rede', type: 'text' },
+      { key: 'scanner_communication', label: 'Comunicação com scanner', type: 'select', options: ['normal', 'intermitente', 'sem comunicação'] },
+      { key: 'module_notes', label: 'Módulos/ECU', type: 'textarea' }
     ]
   }
 ];
-const GUIDED_PREFIX = 'Diagnostico guiado:';
-const OBS_PREFIX = 'Observacoes:';
+const GUIDED_PREFIX = 'Diagnóstico guiado:';
+const OBS_PREFIX = 'Observações:';
 
 export const getDiagnosticTemplate = (templateKey?: string) =>
   DIAGNOSTIC_TEMPLATES.find((template) => template.key === templateKey);
@@ -396,7 +386,7 @@ export const getDiagnosticTemplateByName = (name?: string) =>
   );
 
 export const getDiagnosticStatusLabel = (status?: string) =>
-  DIAGNOSTIC_RESULT_OPTIONS.find((option) => option.value === status)?.label || status || 'Nao informado';
+  DIAGNOSTIC_RESULT_OPTIONS.find((option) => option.value === status)?.label || status || 'Não informado';
 
 export const getDiagnosticStatusGroup = (status?: string) => {
   if (status === 'reprovado') return 'failed';
@@ -512,7 +502,7 @@ export const summarizeDiagnosticTest = (test: OrderTest) => {
   }
 
   if (parsed.observations) {
-    lines.push(`Observacoes: ${parsed.observations}`);
+    lines.push(`Observações: ${parsed.observations}`);
   }
 
   return {
