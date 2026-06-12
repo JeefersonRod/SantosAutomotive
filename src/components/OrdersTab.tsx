@@ -94,6 +94,16 @@ const INITIAL_EVIDENCE_KEYS = [
   'other_panel_lights'
 ];
 
+const PANEL_LIGHT_OPTIONS = [
+  { key: 'check_engine_light', label: 'Injeção' },
+  { key: 'abs_light', label: 'ABS' },
+  { key: 'airbag_light', label: 'Airbag' },
+  { key: 'eps_light', label: 'EPS' },
+  { key: 'battery_light', label: 'Bateria' },
+  { key: 'temperature_light', label: 'Temperatura' },
+  { key: 'other_panel_lights', label: 'Outra' }
+];
+
 export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, options?: { search?: string }) => void }) {
   const { user } = useAuth();
   const canLoadStaff = user?.permissions === 'super_admin' || user?.permissions === 'admin';
@@ -118,6 +128,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
   const [diagnosticObservations, setDiagnosticObservations] = useState('');
   const [manualTestName, setManualTestName] = useState('');
   const [selectedTechnicalSymptoms, setSelectedTechnicalSymptoms] = useState<string[]>([]);
+  const [showPanelLightPicker, setShowPanelLightPicker] = useState(false);
   
   const [formData, setFormData] = useState({
     vehicle_id: 0,
@@ -157,6 +168,32 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
   const guidedDiagnosticTests = formData.tests.filter((test) => isGuidedDiagnosticTest(test) && !isTechnicalSymptomTest(test));
   const freeDiagnosticTests = formData.tests.filter((test) => !isGuidedDiagnosticTest(test) && !isTechnicalSymptomTest(test));
   const canEditDiagnostics = user?.permissions !== 'attendant' && user?.permissions !== 'client';
+  const technicalChecklistItems = CHECKLIST_ITEMS.filter((item) => !INITIAL_EVIDENCE_KEYS.includes(item.key));
+  const hasPanelLights = PANEL_LIGHT_OPTIONS.some((option) => formData.checklist[option.key] === 'present');
+
+  const setPanelLightsEnabled = (enabled: boolean) => {
+    setShowPanelLightPicker(enabled);
+    if (enabled) return;
+
+    setFormData({
+      ...formData,
+      checklist: {
+        ...formData.checklist,
+        ...Object.fromEntries(PANEL_LIGHT_OPTIONS.map((option) => [option.key, 'not_checked']))
+      }
+    });
+  };
+
+  const togglePanelLight = (key: string) => {
+    const isSelected = formData.checklist[key] === 'present';
+    setFormData({
+      ...formData,
+      checklist: {
+        ...formData.checklist,
+        [key]: isSelected ? 'not_checked' : 'present'
+      }
+    });
+  };
 
   useEffect(() => {
     fetchOrders();
@@ -267,7 +304,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
       return;
     }
 
-    const savedTest = formData.tests.find((test) => test.component_name === template.name);
+    const savedTest = formData.tests.find((test) => test.component_name === template.name || test.component_name.startsWith(`${template.name} - `));
     if (savedTest) {
       const parsed = parseDiagnosticNotes(template, savedTest.notes);
       setDiagnosticValues(parsed.values);
@@ -285,6 +322,13 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
 
   const updateDiagnosticField = (fieldKey: string, value: string) => {
     setDiagnosticValues((current) => ({ ...current, [fieldKey]: value }));
+  };
+
+  const getDiagnosticConditionLabel = (values: Record<string, string>) => {
+    const condition = values.test_condition?.trim();
+    const rpm = values.rpm?.trim();
+    if (condition === 'RPM informado' && rpm) return `${rpm} RPM`;
+    return condition || '';
   };
 
   const toggleTechnicalSymptom = (symptom: string) => {
@@ -324,13 +368,15 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
     }
 
     const notes = buildDiagnosticNotes(selectedDiagnosticTemplate, diagnosticValues, diagnosticObservations);
+    const conditionLabel = getDiagnosticConditionLabel(diagnosticValues);
+    const componentName = conditionLabel ? `${selectedDiagnosticTemplate.name} - ${conditionLabel}` : selectedDiagnosticTemplate.name;
     const nextTest = {
-      component_name: selectedDiagnosticTemplate.name,
+      component_name: componentName,
       result: diagnosticResult,
       notes
     };
 
-    const existingIndex = formData.tests.findIndex((test) => test.component_name === selectedDiagnosticTemplate.name);
+    const existingIndex = formData.tests.findIndex((test) => test.component_name === componentName);
     const nextTests = [...formData.tests];
 
     if (existingIndex >= 0) {
@@ -443,6 +489,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
 
   const handleOpenModal = async (order?: ServiceOrder, mode: 'full' | 'checklist' | 'tests' = 'full') => {
     setModalMode(mode);
+    setShowPanelLightPicker(false);
     if (order) {
       setEditingOrder(order);
       try {
@@ -1057,39 +1104,49 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
                 </div>
 
                 <div className="space-y-3 bg-surface-50 p-4 rounded-3xl border border-surface-200">
-                  <div>
-                    <h4 className="micro-label">Evidências iniciais</h4>
-                    <p className="mt-1 text-xs font-medium text-surface-500">
-                      Luzes e alertas observados na entrada. Isso é recepção, não diagnóstico técnico.
-                    </p>
+                  <h4 className="micro-label">Possui alguma luz acesa no painel?</h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPanelLightsEnabled(false)}
+                      className={`px-4 py-3 rounded-xl text-sm font-bold border transition-all ${
+                        !hasPanelLights && !showPanelLightPicker ? 'bg-brand-primary text-white border-brand-primary' : 'bg-white border-surface-200 text-surface-600'
+                      }`}
+                    >
+                      Não
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPanelLightsEnabled(true)}
+                      className={`px-4 py-3 rounded-xl text-sm font-bold border transition-all ${
+                        hasPanelLights || showPanelLightPicker ? 'bg-brand-primary text-white border-brand-primary' : 'bg-white border-surface-200 text-surface-600'
+                      }`}
+                    >
+                      Sim
+                    </button>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {CHECKLIST_ITEMS.filter((item) => INITIAL_EVIDENCE_KEYS.includes(item.key)).map((item) => {
-                      const isPresent = formData.checklist[item.key] === 'present';
-                      return (
-                        <button
-                          key={item.key}
-                          type="button"
-                          onClick={() => setFormData({
-                            ...formData,
-                            checklist: {
-                              ...formData.checklist,
-                              [item.key]: isPresent ? 'not_checked' : 'present'
-                            }
-                          })}
-                          className={`px-3 py-2 rounded-xl text-left text-[11px] font-bold border transition-all ${
-                            isPresent
-                              ? 'bg-amber-50 border-amber-200 text-amber-700'
-                              : 'bg-white border-surface-200 text-surface-500 hover:border-brand-primary hover:text-brand-primary'
-                          }`}
-                        >
-                          {item.label}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  {(hasPanelLights || showPanelLightPicker) && (
+                    <div className="flex flex-wrap gap-2">
+                      {PANEL_LIGHT_OPTIONS.map((option) => {
+                        const selected = formData.checklist[option.key] === 'present';
+                        return (
+                          <button
+                            key={option.key}
+                            type="button"
+                            onClick={() => togglePanelLight(option.key)}
+                            className={`px-3 py-2 rounded-xl text-[11px] font-bold border transition-all ${
+                              selected
+                                ? 'bg-amber-50 border-amber-200 text-amber-700'
+                                : 'bg-white border-surface-200 text-surface-500 hover:border-brand-primary hover:text-brand-primary'
+                            }`}
+                          >
+                            {option.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-
                 </FormSection>
                 )}
                 {showChecklistModalSection && (
@@ -1122,7 +1179,29 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
                         <option value="Cheio">Cheio</option>
                       </select>
                     </div>
-                    {CHECKLIST_ITEMS.map(item => (
+                    <div className="space-y-2 sm:col-span-2">
+                      <label className="text-[10px] font-bold text-surface-400 uppercase">Luzes observadas pelo técnico</label>
+                      <div className="flex flex-wrap gap-2 rounded-2xl border border-surface-200 bg-white p-3">
+                        {PANEL_LIGHT_OPTIONS.map((option) => {
+                          const selected = formData.checklist[option.key] === 'present';
+                          return (
+                            <button
+                              key={option.key}
+                              type="button"
+                              onClick={() => togglePanelLight(option.key)}
+                              className={`px-3 py-2 rounded-xl text-[10px] font-bold border transition-all ${
+                                selected
+                                  ? 'bg-amber-50 border-amber-200 text-amber-700'
+                                  : 'bg-surface-50 border-surface-200 text-surface-500'
+                              }`}
+                            >
+                              {option.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    {technicalChecklistItems.map(item => (
                       <div key={item.key} className="flex flex-col gap-1">
                         <label className="text-[10px] font-bold text-surface-400 uppercase">{item.label}</label>
                         <div className="grid grid-cols-1 gap-1">
@@ -1151,27 +1230,8 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
                 {showTestsModalSection && (
                 <FormSection title="Diagnóstico Técnico" description="Área do técnico: sistemas, componentes, sintomas técnicos, testes e resultados.">
                 <div className="space-y-5 bg-surface-50 p-4 sm:p-6 rounded-3xl border border-surface-200">
-                  <div className="bg-white p-4 rounded-3xl border border-brand-primary/15 space-y-3">
-                    <h3 className="micro-label">Fluxo do diagnóstico</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
-                      {['1. Escolha o sistema', '2. Escolha o componente', '3. Execute o teste', '4. Informe o resultado', '5. Salve no resumo da O.S.'].map((stepLabel) => (
-                        <div key={stepLabel} className="rounded-2xl border border-surface-200 bg-surface-50 p-3 text-[11px] font-bold text-surface-600">
-                          {stepLabel}
-                        </div>
-                      ))}
-                    </div>
-                    <p className="text-xs font-medium text-surface-500">
-                      Preencha apenas os testes executados. Evidências de recepção e checklist ficam na seção Recepção.
-                    </p>
-                  </div>
-
                   <div className="bg-white p-4 rounded-3xl border border-surface-200 space-y-3">
-                    <div>
-                      <h3 className="micro-label">Sintomas técnicos constatados</h3>
-                      <p className="text-xs font-medium text-surface-500 mt-1">
-                        Diferente da queixa do cliente: marque apenas o que a oficina constatou técnicamente.
-                      </p>
-                    </div>
+                    <h3 className="micro-label">Sintomas técnicos constatados</h3>
                     <div className="flex flex-wrap gap-2">
                       {TECHNICAL_SYMPTOM_OPTIONS.map((symptom) => {
                         const selected = selectedTechnicalSymptoms.includes(symptom);
@@ -1195,7 +1255,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
                   </div>
 
                   <div className="space-y-3">
-                    <h3 className="micro-label">1. Escolha o sistema</h3>
+                    <h3 className="micro-label">Sistema</h3>
                     <div className="flex gap-2 overflow-x-auto pb-1">
                       {diagnosticCategories.map((category) => (
                         <button
@@ -1216,7 +1276,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
                         </button>
                       ))}
                     </div>
-                    <h3 className="micro-label">2. Escolha o componente</h3>
+                    <h3 className="micro-label">Componente</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {DIAGNOSTIC_TEMPLATES.filter((template) => template.system === selectedDiagnosticCategory).map((template) => (
                         <button
@@ -1239,11 +1299,11 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
                   <div className={`${canEditDiagnostics ? 'bg-white' : 'bg-surface-100'} p-4 rounded-3xl border border-surface-200 space-y-4`}>
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                       <div>
-                        <h3 className="text-base font-display font-bold text-surface-900">3. Execute o teste: {selectedDiagnosticTemplate.name}</h3>
+                        <h3 className="text-base font-display font-bold text-surface-900">Teste: {selectedDiagnosticTemplate.name}</h3>
                         <p className="text-xs font-medium text-surface-500">{selectedDiagnosticTemplate.system} / {selectedDiagnosticTemplate.component}</p>
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-surface-500 uppercase ml-1">4. Resultado</label>
+                        <label className="text-[10px] font-bold text-surface-500 uppercase ml-1">Resultado</label>
                       <select
                         disabled={!canEditDiagnostics}
                         className="px-3 py-2 bg-surface-50 border border-surface-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-brand-primary/20 disabled:opacity-60"
@@ -1282,7 +1342,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
                       <div className="flex flex-col sm:flex-row gap-2">
                         <button type="button" onClick={saveGuidedDiagnosticToForm} className="btn-primary rounded-2xl py-3">
                           <CheckCircle2 className="w-4 h-4" />
-                          5. Salvar no resumo
+                          Salvar no resumo
                         </button>
                         <button type="button" onClick={() => resetDiagnosticForm()} className="px-4 py-3 bg-surface-50 border border-surface-200 rounded-2xl text-sm font-bold text-surface-600 hover:bg-surface-100 transition-colors">
                           Limpar campos

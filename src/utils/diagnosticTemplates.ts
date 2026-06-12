@@ -160,12 +160,11 @@ export const DIAGNOSTIC_TEMPLATES: DiagnosticTemplate[] = [
     relatedComponents: ['MAP'],
     possibleDtcs: ['P0106'],
     fields: withCondition([
-      { key: 'map_key_mbar', label: 'MAP chave ligada scanner', type: 'number', unit: 'mbar' },
-      { key: 'map_key_volts', label: 'MAP chave ligada', type: 'number', unit: 'V' },
-      { key: 'map_idle_mbar', label: 'MAP marcha lenta absoluta', type: 'number', unit: 'mbar' },
-      { key: 'map_idle_volts', label: 'MAP marcha lenta', type: 'number', unit: 'V' },
-      { key: 'map_accel_volts', label: 'MAP aceleracao variacao', type: 'number', unit: 'V' },
-      { key: 'barometric_pressure', label: 'Pressão barometrica local', type: 'number', unit: 'mbar' },
+      { key: 'measured_pressure', label: 'Pressão medida', type: 'number', unit: 'mbar' },
+      { key: 'signal_voltage', label: 'Tensão do sinal', type: 'number', unit: 'V' },
+      { key: 'reference_voltage', label: 'Tensão de referência', type: 'number', unit: 'V' },
+      { key: 'positive_supply', label: 'Alimentação positiva OK?', type: 'select', options: ['sim', 'não', 'não verificado'] },
+      { key: 'negative_supply', label: 'Alimentação negativa OK?', type: 'select', options: ['sim', 'não', 'não verificado'] },
       { key: 'notes', label: 'Observações', type: 'textarea' }
     ])
   },
@@ -180,11 +179,13 @@ export const DIAGNOSTIC_TEMPLATES: DiagnosticTemplate[] = [
     relatedComponents: ['MAF', 'IAT'],
     possibleDtcs: ['P0101', 'P0110'],
     fields: withCondition([
-      { key: 'maf_type', label: 'Tipo MAF', type: 'select', options: ['analogico', 'digital', 'não aplicado'] },
-      { key: 'maf_reading', label: 'Leitura MAF', type: 'text', placeholder: 'g/s, kg/h, Hz ou V' },
-      { key: 'iat_cold', label: 'IAT frio', type: 'number', unit: 'C' },
-      { key: 'iat_hot', label: 'IAT quente', type: 'number', unit: 'C' },
-      { key: 'cold_difference', label: 'Diferenca fase fria', type: 'number', unit: 'C', reference: 'Maximo recomendado: 3 C' },
+      { key: 'maf_type', label: 'Tipo MAF', type: 'select', options: ['analógico', 'digital', 'não aplicado'] },
+      { key: 'air_flow', label: 'Fluxo de ar medido', type: 'text', placeholder: 'g/s, kg/h, Hz ou V' },
+      { key: 'intake_temperature', label: 'Temperatura do ar admitido', type: 'number', unit: 'C' },
+      { key: 'signal_voltage', label: 'Tensão do sinal', type: 'number', unit: 'V' },
+      { key: 'reference_voltage', label: 'Tensão de referência', type: 'number', unit: 'V' },
+      { key: 'positive_supply', label: 'Alimentação positiva OK?', type: 'select', options: ['sim', 'não', 'não verificado'] },
+      { key: 'negative_supply', label: 'Alimentação negativa OK?', type: 'select', options: ['sim', 'não', 'não verificado'] },
       { key: 'notes', label: 'Observações', type: 'textarea' }
     ])
   },
@@ -382,6 +383,8 @@ export const getDiagnosticTemplateByName = (name?: string) =>
   DIAGNOSTIC_TEMPLATES.find((template) =>
     template.name === name ||
     template.shortName === name ||
+    Boolean(name?.startsWith(`${template.name} - `)) ||
+    Boolean(name?.startsWith(`${template.shortName} - `)) ||
     Boolean(name && template.aliases?.includes(name))
   );
 
