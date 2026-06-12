@@ -28,7 +28,9 @@ Ordens de Servico sao o centro operacional do sistema. A fase atual preserva o s
 
 Notas de Servico podem ser geradas a partir da O.S. pelo endpoint `POST /api/orders/:id/note`, que reutiliza `notes.order_id`, `note_items` e evita duplicar nota quando uma ja existe para a mesma O.S. Itens de `order_items` continuam com valores internos legados (`labor`, `parts`) e sao mapeados para `service` e `part` em `note_items`. Fluxos profissionais mais granulares devem ser planejados com migration compativel para nao quebrar O.S. antigas, Dashboard, Clientes e Notas.
 
-Diagnostico guiado Fase 1 usa templates estaticos em `src/utils/diagnosticTemplates.ts` e persiste no modelo atual de `service_order_tests`: `component_name`, `result` e `notes`. Os campos guiados sao serializados em texto legivel dentro de `notes`, mantendo compatibilidade com testes antigos e sem migration.
+Diagnostico guiado Fase 1 usa templates estaticos em `src/utils/diagnosticTemplates.ts` e persiste no modelo atual de `service_order_tests`: `component_name`, `result` e `notes`. Os campos guiados sao serializados em texto legivel dentro de `notes`, mantendo compatibilidade com testes antigos e sem migration. A O.S. diferencia a queixa do cliente (`service_orders.description`) dos sintomas tecnicos constatados, que sao salvos como evidencia tecnica compatível em `service_order_tests`.
+
+Checklist de entrada tambem e fonte de historico tecnico derivado. Luzes acesas, reserva de combustivel, vazamentos, pneus gastos, arrefecimento irregular, avarias e itens essenciais ausentes geram eventos automaticos de historico em `src/utils/technicalHistory.ts`, sem formulario manual e sem nova tabela nesta fase. Diagnosticos aprovados sao tratados como itens testados e descartados; reprovados como falhas encontradas; inconclusivos e nao realizados ficam separados nos resumos e na impressao.
 
 ## Impressao
 

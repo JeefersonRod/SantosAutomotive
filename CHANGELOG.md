@@ -2,6 +2,10 @@
 
 ## Atual
 
+- Checklist de entrada passou a alimentar historico tecnico automatico derivado, sem formulario manual, migration ou backend novo.
+- O.S. agora separa queixa do cliente de sintomas tecnicos constatados, persistindo os sintomas na estrutura existente de testes.
+- Diagnosticos e testes passam a destacar falhas encontradas, itens testados e descartados, inconclusivos e nao realizados.
+- Impressao da O.S. exibe sintomas tecnicos, grupos de diagnostico por resultado e historico tecnico automatico.
 - Criada Fase 1 de diagnostico guiado da O.S. com templates estaticos no frontend, sem migration e sem backend novo.
 - Modal de "Diagnostico e testes" agora permite selecionar modelos tecnicos, preencher campos guiados, salvar resumo e reabrir para editar.
 - Impressao da O.S. passa a exibir diagnosticos guiados preenchidos de forma resumida.

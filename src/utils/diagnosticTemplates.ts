@@ -29,6 +29,30 @@ export const DIAGNOSTIC_RESULT_OPTIONS: Array<{ value: DiagnosticResultStatus; l
   { value: 'nao_realizado', label: 'Nao realizado' }
 ];
 
+export const TECHNICAL_SYMPTOM_TEST_NAME = 'Sintomas tecnicos constatados';
+
+export const TECHNICAL_SYMPTOM_OPTIONS = [
+  'Nao liga / nao da partida',
+  'Liga e morre',
+  'Demora para pegar',
+  'Falha / engasga',
+  'Marcha lenta irregular',
+  'Perda de potencia',
+  'Consumo alto',
+  'Luz de injecao acesa',
+  'Luz de bateria acesa',
+  'Superaquecimento',
+  'Fumaca',
+  'Cheiro de combustivel',
+  'Vazamento',
+  'Barulho anormal',
+  'Vibracao',
+  'Bateria descarregando',
+  'Ar-condicionado nao gela',
+  'Intermitente',
+  'Revisao preventiva / sem queixa'
+] as const;
+
 export const DIAGNOSTIC_TEMPLATES: DiagnosticTemplate[] = [
   {
     key: 'battery_charging',
@@ -238,6 +262,13 @@ export const getDiagnosticTemplateByName = (name?: string) =>
 export const getDiagnosticStatusLabel = (status?: string) =>
   DIAGNOSTIC_RESULT_OPTIONS.find((option) => option.value === status)?.label || status || 'Nao informado';
 
+export const getDiagnosticStatusGroup = (status?: string) => {
+  if (status === 'reprovado') return 'failed';
+  if (status === 'aprovado') return 'approved';
+  if (status === 'nao_realizado') return 'not_done';
+  return 'inconclusive';
+};
+
 export const getDiagnosticCategories = () =>
   Array.from(new Set(DIAGNOSTIC_TEMPLATES.map((template) => template.category)));
 
@@ -302,6 +333,20 @@ export const parseDiagnosticNotes = (template: DiagnosticTemplate, notes?: strin
 
 export const isGuidedDiagnosticTest = (test: Pick<OrderTest, 'component_name' | 'notes'>) =>
   Boolean(getDiagnosticTemplateByName(test.component_name)) || Boolean(test.notes?.startsWith(GUIDED_PREFIX));
+
+export const isTechnicalSymptomTest = (test: Pick<OrderTest, 'component_name'>) =>
+  test.component_name === TECHNICAL_SYMPTOM_TEST_NAME;
+
+export const buildTechnicalSymptomNotes = (symptoms: string[]) =>
+  symptoms.length ? symptoms.map((symptom) => `Sintoma: ${symptom}`).join('\n') : '';
+
+export const parseTechnicalSymptomNotes = (notes?: string) =>
+  (notes || '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => line.replace(/^Sintoma:\s*/i, '').trim())
+    .filter(Boolean);
 
 export const summarizeDiagnosticTest = (test: OrderTest) => {
   const template = getDiagnosticTemplateByName(test.component_name);

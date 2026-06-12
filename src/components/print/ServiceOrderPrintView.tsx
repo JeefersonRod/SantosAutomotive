@@ -1,7 +1,8 @@
 import React from 'react';
 import { ServiceOrder, OrderItem } from '../../types';
 import { CHECKLIST_ITEMS, getChecklistStatusMeta, normalizeChecklist } from '../../utils/checklist';
-import { summarizeDiagnosticTest } from '../../utils/diagnosticTemplates';
+import { getDiagnosticStatusGroup, isTechnicalSymptomTest, parseTechnicalSymptomNotes, summarizeDiagnosticTest } from '../../utils/diagnosticTemplates';
+import { deriveOrderTechnicalHistory } from '../../utils/technicalHistory';
 
 const formatMoney = (value: unknown) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0));
@@ -20,7 +21,18 @@ export default function ServiceOrderPrintView({ order }: { order: ServiceOrder }
   const partItems = (order.items || []).filter((item) => item.type === 'parts');
   const servicesTotal = serviceItems.reduce((sum, item) => sum + getOrderItemTotal(item), 0);
   const partsTotal = partItems.reduce((sum, item) => sum + getOrderItemTotal(item), 0);
-  const diagnosticSummaries = (order.tests || []).map(summarizeDiagnosticTest);
+  const symptomTest = (order.tests || []).find(isTechnicalSymptomTest);
+  const technicalSymptoms = parseTechnicalSymptomNotes(symptomTest?.notes);
+  const diagnosticSummaries = (order.tests || [])
+    .filter((test) => !isTechnicalSymptomTest(test))
+    .map((test) => ({ ...summarizeDiagnosticTest(test), group: getDiagnosticStatusGroup(test.result) }));
+  const diagnosticGroups = [
+    { key: 'failed', title: 'Falhas encontradas' },
+    { key: 'approved', title: 'Itens testados e descartados' },
+    { key: 'inconclusive', title: 'Itens inconclusivos' },
+    { key: 'not_done', title: 'Itens nao realizados' }
+  ];
+  const technicalHistory = deriveOrderTechnicalHistory(order);
   const statusLabel =
     order.status === 'pending' ? 'Recepcao / Pendente' :
       order.status === 'in_progress' ? 'Em diagnostico / Execucao' :
@@ -84,6 +96,15 @@ export default function ServiceOrderPrintView({ order }: { order: ServiceOrder }
         <p className="print-doc-box">{order.description || 'Nao informado'}</p>
       </section>
 
+      {technicalSymptoms.length > 0 && (
+        <section className="print-doc-section">
+          <h2>Sintomas tecnicos constatados</h2>
+          <div className="print-doc-pill-list">
+            {technicalSymptoms.map((symptom) => <span key={symptom}>{symptom}</span>)}
+          </div>
+        </section>
+      )}
+
       <section className="print-doc-section">
         <h2>Checklist de entrada</h2>
         <div className="print-doc-checklist">
@@ -103,14 +124,38 @@ export default function ServiceOrderPrintView({ order }: { order: ServiceOrder }
       {order.tests && order.tests.length > 0 && (
         <section className="print-doc-section">
           <h2>Diagnosticos guiados e testes</h2>
-          <div className="print-doc-tests">
-            {diagnosticSummaries.map((summary, index) => (
-              <div key={`${summary.title}-${index}`}>
-                <strong>{summary.title}</strong>
-                {summary.category && <span>{summary.category}</span>}
-                <span>Resultado: {summary.status}</span>
-                {summary.lines.slice(0, 8).map((line) => <small key={line}>{line}</small>)}
-                {summary.lines.length > 8 && <small>+ {summary.lines.length - 8} campos preenchidos</small>}
+          {diagnosticGroups.map((group) => {
+            const items = diagnosticSummaries.filter((summary) => summary.group === group.key);
+            if (items.length === 0) return null;
+
+            return (
+              <div key={group.key} className="print-doc-test-group">
+                <h3>{group.title}</h3>
+                <div className="print-doc-tests">
+                  {items.map((summary, index) => (
+                    <div key={`${summary.title}-${index}`}>
+                      <strong>{summary.title}</strong>
+                      {summary.category && <span>{summary.category}</span>}
+                      <span>Resultado: {summary.status}</span>
+                      {summary.lines.slice(0, 8).map((line) => <small key={line}>{line}</small>)}
+                      {summary.lines.length > 8 && <small>+ {summary.lines.length - 8} campos preenchidos</small>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </section>
+      )}
+
+      {technicalHistory.length > 0 && (
+        <section className="print-doc-section">
+          <h2>Historico tecnico automatico</h2>
+          <div className="print-doc-history">
+            {technicalHistory.map((event, index) => (
+              <div key={`${event.label}-${index}`}>
+                <strong>{event.label}</strong>
+                <span>{event.detail}</span>
               </div>
             ))}
           </div>

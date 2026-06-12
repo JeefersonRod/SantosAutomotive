@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Search, Trash2, Edit2, CheckCircle2, Clock, AlertCircle, X, Wrench, Car, User, Hash, Camera, Filter, Receipt, ChevronRight, Printer, CheckSquare } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
-import { ServiceOrder, OrderItem, Vehicle, StaffMember } from '../types';
+import { ServiceOrder, OrderItem, OrderTest, Vehicle, StaffMember } from '../types';
 import MultiImageUpload from './MultiImageUpload';
 import { useAuth } from '../contexts/AuthContext';
 import { ApiError } from '../services/api';
@@ -15,16 +15,23 @@ import {
   DIAGNOSTIC_TEMPLATES,
   DiagnosticField,
   DiagnosticResultStatus,
+  TECHNICAL_SYMPTOM_OPTIONS,
+  TECHNICAL_SYMPTOM_TEST_NAME,
+  buildTechnicalSymptomNotes,
   buildDiagnosticNotes,
   createEmptyDiagnosticValues,
   getDiagnosticCategories,
   getDiagnosticStatusLabel,
+  getDiagnosticStatusGroup,
   getDiagnosticTemplate,
   getDiagnosticTemplateByName,
   isGuidedDiagnosticTest,
+  isTechnicalSymptomTest,
+  parseTechnicalSymptomNotes,
   parseDiagnosticNotes,
   summarizeDiagnosticTest
 } from '../utils/diagnosticTemplates';
+import { deriveOrderTechnicalHistory } from '../utils/technicalHistory';
 
 const ORDER_STATUS_OPTIONS: Array<{
   value: ServiceOrder['status'];
@@ -86,6 +93,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
   const [diagnosticResult, setDiagnosticResult] = useState<DiagnosticResultStatus>('inconclusivo');
   const [diagnosticObservations, setDiagnosticObservations] = useState('');
   const [manualTestName, setManualTestName] = useState('');
+  const [selectedTechnicalSymptoms, setSelectedTechnicalSymptoms] = useState<string[]>([]);
   
   const [formData, setFormData] = useState({
     vehicle_id: 0,
@@ -96,7 +104,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
     checklist: createDefaultChecklist() as Record<string, any>,
     items: [] as OrderItem[],
     checkin_images: [] as string[],
-    tests: [] as { component_name: string; result: string; notes: string }[],
+    tests: [] as OrderTest[],
     entry_date: new Date().toISOString().split('T')[0],
     exit_date: '',
     is_priority: false
@@ -105,8 +113,25 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
   const [newItem, setNewItem] = useState<OrderItem>({ description: '', price: 0, quantity: 1, type: 'parts' });
   const diagnosticCategories = getDiagnosticCategories();
   const selectedDiagnosticTemplate = getDiagnosticTemplate(selectedDiagnosticTemplateKey) || DIAGNOSTIC_TEMPLATES[0];
-  const guidedDiagnosticTests = formData.tests.filter((test) => isGuidedDiagnosticTest(test));
-  const freeDiagnosticTests = formData.tests.filter((test) => !isGuidedDiagnosticTest(test));
+  const technicalHistoryPreview = deriveOrderTechnicalHistory({
+    id: editingOrder?.id || 0,
+    vehicle_id: formData.vehicle_id,
+    description: formData.description,
+    status: formData.status,
+    total_amount: formData.items.reduce((s, i) => s + ((i.price || 0) * (i.quantity || 1)), 0),
+    notes: formData.notes,
+    checklist: formData.checklist,
+    checkin_images: formData.checkin_images,
+    created_at: editingOrder?.created_at || new Date().toISOString(),
+    entry_date: formData.entry_date,
+    exit_date: formData.exit_date,
+    is_priority: formData.is_priority,
+    items: formData.items,
+    tests: formData.tests,
+    note_id: editingOrder?.note_id
+  });
+  const guidedDiagnosticTests = formData.tests.filter((test) => isGuidedDiagnosticTest(test) && !isTechnicalSymptomTest(test));
+  const freeDiagnosticTests = formData.tests.filter((test) => !isGuidedDiagnosticTest(test) && !isTechnicalSymptomTest(test));
   const canEditDiagnostics = user?.permissions !== 'attendant' && user?.permissions !== 'client';
 
   useEffect(() => {
@@ -238,6 +263,36 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
     setDiagnosticValues((current) => ({ ...current, [fieldKey]: value }));
   };
 
+  const toggleTechnicalSymptom = (symptom: string) => {
+    setSelectedTechnicalSymptoms((current) =>
+      current.includes(symptom)
+        ? current.filter((item) => item !== symptom)
+        : [...current, symptom]
+    );
+  };
+
+  const mergeTechnicalSymptomsIntoTests = (tests: OrderTest[]) => {
+    const remainingTests = tests.filter((test) => !isTechnicalSymptomTest(test));
+    if (selectedTechnicalSymptoms.length === 0) return remainingTests;
+
+    return [
+      ...remainingTests,
+      {
+        component_name: TECHNICAL_SYMPTOM_TEST_NAME,
+        result: 'evidencia',
+        notes: buildTechnicalSymptomNotes(selectedTechnicalSymptoms)
+      }
+    ];
+  };
+
+  const getStatusBadgeClass = (status?: string) => {
+    const group = getDiagnosticStatusGroup(status);
+    if (group === 'failed') return 'bg-red-50 text-red-700 border-red-100';
+    if (group === 'approved') return 'bg-emerald-50 text-emerald-700 border-emerald-100';
+    if (group === 'not_done') return 'bg-surface-100 text-surface-500 border-surface-200';
+    return 'bg-amber-50 text-amber-700 border-amber-100';
+  };
+
   const saveGuidedDiagnosticToForm = () => {
     if (!canEditDiagnostics) {
       toast.error('Seu perfil pode visualizar diagnosticos, mas nao alterar testes tecnicos.');
@@ -278,7 +333,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
 
     setFormData({
       ...formData,
-      tests: [...formData.tests, { component_name: name, result: '', notes: '' }]
+      tests: [...formData.tests, { component_name: name, result: 'inconclusivo', notes: '' }]
     });
     setManualTestName('');
   };
@@ -297,11 +352,12 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
     }
 
     try {
-      const keptIds = new Set(formData.tests.map((test) => test.id).filter(Boolean));
+      const nextTests = mergeTechnicalSymptomsIntoTests(formData.tests);
+      const keptIds = new Set(nextTests.map((test) => test.id).filter(Boolean));
       const removedTests = (loadedTests || []).filter((test) => test.id && !keptIds.has(test.id));
 
       await Promise.all(removedTests.map((test) => diagnosticService.removeOrderTest(test.id!)));
-      await Promise.all(formData.tests.map((test) => diagnosticService.saveOrderTest(editingOrder.id, {
+      await Promise.all(nextTests.map((test) => diagnosticService.saveOrderTest(editingOrder.id, {
         component_name: test.component_name,
         result: test.result,
         notes: test.notes
@@ -363,6 +419,9 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
       setEditingOrder(order);
       try {
         const data = await orderService.get(order.id);
+        const orderTests = data.tests || [];
+        const symptomTest = orderTests.find((test) => isTechnicalSymptomTest(test));
+        setSelectedTechnicalSymptoms(parseTechnicalSymptomNotes(symptomTest?.notes));
         setFormData({
           vehicle_id: data.vehicle_id,
           technician_ids: data.technician_ids || [],
@@ -372,7 +431,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
           checklist: normalizeChecklist(data.checklist),
           items: data.items || [],
           checkin_images: safeParseImages(data.checkin_images),
-          tests: data.tests || [],
+          tests: orderTests,
           entry_date: data.entry_date ? new Date(data.entry_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
           exit_date: data.exit_date ? new Date(data.exit_date).toISOString().split('T')[0] : '',
           is_priority: !!data.is_priority
@@ -399,6 +458,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
         is_priority: false
       });
       setLoadedTests([]);
+      setSelectedTechnicalSymptoms([]);
     }
     setIsModalOpen(true);
   };
@@ -438,6 +498,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
         ...formData,
         description,
         notes: formData.notes.trim(),
+        tests: mergeTechnicalSymptomsIntoTests(formData.tests),
         items: formData.items.map((item) => ({
           ...item,
           description: item.description.trim(),
@@ -930,9 +991,9 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
                 )}
 
                 {isFullModal && (
-                <FormSection title="Queixa e descricao do servico" description="Registre o relato inicial e as observacoes internas da oficina.">
+                <FormSection title="Queixa do cliente" description="Registre o relato inicial sem misturar com a constatacao tecnica.">
                 <div className="space-y-2">
-                  <label className="micro-label ml-1">Descrição do Serviço Principal</label>
+                  <label className="micro-label ml-1">Queixa / Servico solicitado</label>
                   <input 
                     disabled={user?.permissions === 'technician'}
                     required
@@ -1016,6 +1077,35 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
                 {showTestsModalSection && (
                 <FormSection title="Diagnostico guiado" description="Selecione um modelo tecnico, preencha apenas o que foi medido e salve no resumo da O.S.">
                 <div className="space-y-5 bg-surface-50 p-4 sm:p-6 rounded-3xl border border-surface-200">
+                  <div className="bg-white p-4 rounded-3xl border border-surface-200 space-y-3">
+                    <div>
+                      <h3 className="micro-label">Sintomas tecnicos constatados</h3>
+                      <p className="text-xs font-medium text-surface-500 mt-1">
+                        Diferente da queixa do cliente: marque apenas o que a oficina constatou tecnicamente.
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {TECHNICAL_SYMPTOM_OPTIONS.map((symptom) => {
+                        const selected = selectedTechnicalSymptoms.includes(symptom);
+                        return (
+                          <button
+                            key={symptom}
+                            type="button"
+                            disabled={!canEditDiagnostics}
+                            onClick={() => toggleTechnicalSymptom(symptom)}
+                            className={`px-3 py-2 rounded-xl text-[11px] font-bold border transition-all disabled:opacity-60 ${
+                              selected
+                                ? 'bg-brand-primary text-white border-brand-primary shadow-sm'
+                                : 'bg-surface-50 text-surface-600 border-surface-200 hover:border-brand-primary hover:text-brand-primary'
+                            }`}
+                          >
+                            {symptom}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
                   <div className="space-y-3">
                     <h3 className="micro-label">Modelos de diagnostico guiado</h3>
                     <div className="flex gap-2 overflow-x-auto pb-1">
@@ -1156,7 +1246,7 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
                                   {summary.category && <p className="text-[11px] font-bold text-surface-400 uppercase mt-1">{summary.category}</p>}
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  <span className="px-2.5 py-1 rounded-full bg-brand-primary/10 text-brand-primary text-[10px] font-black uppercase">
+                                  <span className={`px-2.5 py-1 rounded-full border text-[10px] font-black uppercase ${getStatusBadgeClass(test.result)}`}>
                                     {summary.status}
                                   </span>
                                   {canEditDiagnostics && template && (
@@ -1204,17 +1294,20 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div className="space-y-1">
                                   <label className="text-[10px] font-bold text-surface-400 uppercase ml-1">Resultado do teste</label>
-                                  <input
+                                  <select
                                     disabled={!canEditDiagnostics}
-                                    placeholder="Ex: 4.2 bar, 12.5 kg/h..."
                                     className="w-full px-3 py-2 bg-surface-50 border border-surface-100 rounded-xl outline-none focus:ring-2 focus:ring-brand-primary/20 text-sm font-bold disabled:opacity-60"
-                                    value={test.result}
+                                    value={DIAGNOSTIC_RESULT_OPTIONS.some((option) => option.value === test.result) ? test.result : 'inconclusivo'}
                                     onChange={(e) => {
                                       const nt = [...formData.tests];
                                       nt[originalIndex].result = e.target.value;
                                       setFormData({ ...formData, tests: nt });
                                     }}
-                                  />
+                                  >
+                                    {DIAGNOSTIC_RESULT_OPTIONS.map((option) => (
+                                      <option key={option.value} value={option.value}>{option.label}</option>
+                                    ))}
+                                  </select>
                                 </div>
                                 <div className="space-y-1">
                                   <label className="text-[10px] font-bold text-surface-400 uppercase ml-1">Observacoes tecnicas</label>
@@ -1235,6 +1328,22 @@ export default function OrdersTab({ onNavigate }: { onNavigate: (tab: any, optio
                           );
                         })}
                       </>
+                    )}
+                  </div>
+
+                  <div className="space-y-3">
+                    <h3 className="micro-label">Historico tecnico automatico</h3>
+                    {technicalHistoryPreview.length === 0 ? (
+                      <p className="text-center py-4 text-surface-400 text-xs font-medium italic">Nenhum evento tecnico derivado ainda.</p>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {technicalHistoryPreview.slice(0, 8).map((event, index) => (
+                          <div key={`${event.label}-${index}`} className="bg-white border border-surface-200 rounded-2xl p-3">
+                            <span className="block text-[10px] font-black uppercase text-surface-400">{event.label}</span>
+                            <p className="mt-1 text-xs font-bold text-surface-700">{event.detail}</p>
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
                 </div>
